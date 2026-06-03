@@ -11,6 +11,8 @@ import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { sounds } from '@/lib/sounds'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { Lightbulb, ArrowLeft, Clock, Flame, ArrowRight } from 'lucide-react'
 
 export default function DailyChallengePage() {
@@ -154,6 +156,14 @@ export default function DailyChallengePage() {
             })
 
             submitAnswer(result.is_correct, result.score_awarded)
+
+            if (result.is_correct) {
+                sounds.play('correct')
+                await Haptics.impact({ style: ImpactStyle.Medium })
+            } else {
+                sounds.play('wrong')
+                await Haptics.impact({ style: ImpactStyle.Light })
+            }
 
             setFeedback(result.is_correct
                 ? `Correct! ${currentQuestion.celebrity_name} is ${result.correct_answer.age}.`

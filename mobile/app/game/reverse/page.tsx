@@ -6,6 +6,8 @@ import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { sounds } from '@/lib/sounds'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { CelebrityImage } from '@/components/ui/CelebrityImage'
 import { Card } from '@/components/ui/Card'
 import { GameLoadingSkeleton } from '@/components/ui/SkeletonLoader'
@@ -120,6 +122,14 @@ export default function ReverseModePage() {
             const correctVal = mode === 'REVERSE_SIGN' ? result.correct_answer?.sign : result.correct_answer?.year
             setCorrectId(correctVal)
             submitAnswer(result.is_correct, result.score_awarded)
+
+            if (result.is_correct) {
+                sounds.play('correct')
+                await Haptics.impact({ style: ImpactStyle.Medium })
+            } else {
+                sounds.play('wrong')
+                await Haptics.impact({ style: ImpactStyle.Light })
+            }
 
             setFeedback({
                 isCorrect: result.is_correct,

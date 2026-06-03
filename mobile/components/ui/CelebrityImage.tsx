@@ -18,36 +18,6 @@ const sizeClasses = {
     full: 'w-full h-full text-6xl'
 }
 
-// Generate consistent color based on name
-const getColorFromName = (name: string): string => {
-    const colors = [
-        'from-blue-500 to-cyan-500',
-        'from-purple-500 to-pink-500',
-        'from-green-500 to-emerald-500',
-        'from-orange-500 to-red-500',
-        'from-indigo-500 to-purple-500',
-        'from-pink-500 to-rose-500',
-        'from-teal-500 to-blue-500',
-        'from-yellow-500 to-orange-500'
-    ]
-
-    const hash = name.split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0)
-        return a & a
-    }, 0)
-
-    return colors[Math.abs(hash) % colors.length]
-}
-
-// Extract initials from full name
-const getInitials = (name: string): string => {
-    return name
-        .split(' ')
-        .map(word => word.charAt(0))
-        .slice(0, 2) // Take first 2 initials
-        .join('')
-        .toUpperCase()
-}
 
 export const CelebrityImage = ({
     name,
@@ -59,8 +29,6 @@ export const CelebrityImage = ({
     const [imageLoaded, setImageLoaded] = useState(false)
     const [imageError, setImageError] = useState(false)
 
-    const initials = getInitials(name)
-    const gradientClass = getColorFromName(name)
     const borderRadius = rounded === 'full' ? 'rounded-full' : 'rounded-sharp'
 
     // If image URL provided and loaded successfully
@@ -78,17 +46,11 @@ export const CelebrityImage = ({
         )
     }
 
-    // Default to generated avatar
+    // Blank placeholder
     return (
         <div
-            className={`${sizeClasses[size]} ${borderRadius} bg-gradient-to-br ${gradientClass} flex items-center justify-center font-bold text-white shadow-lg border border-border-subtle ${className}`}
-            style={{
-                textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-            }}
+            className={`${sizeClasses[size]} ${borderRadius} bg-surface border border-border-subtle ${className}`}
         >
-            {initials}
-
-            {/* Optional: Hidden img tag to attempt loading */}
             {imageUrl && !imageLoaded && !imageError && (
                 <img
                     src={imageUrl}

@@ -9,6 +9,7 @@ import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { sounds } from '@/lib/sounds'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { ArrowLeft, Clock, Info, Pause, Play, CheckCircle, X } from 'lucide-react'
 
@@ -141,8 +142,10 @@ export default function WhosOlderPage() {
             })
 
             if (result.is_correct) {
+                sounds.play('correct')
                 await Haptics.impact({ style: ImpactStyle.Medium })
             } else {
+                sounds.play('wrong')
                 await Haptics.impact({ style: ImpactStyle.Light })
             }
 

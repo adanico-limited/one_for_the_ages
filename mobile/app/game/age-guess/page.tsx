@@ -13,6 +13,7 @@ import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { sounds } from '@/lib/sounds'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 import { ArrowLeft, Clock, Info, Pause, Play, X, CheckCircle, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -104,11 +105,14 @@ export default function AgeGuessPage() {
             let type: 'spot-on' | 'close' | 'wrong' = 'wrong'
             if (diff === 0) {
                 type = 'spot-on'
+                sounds.play('correct')
                 await Haptics.impact({ style: ImpactStyle.Heavy })
             } else if (diff <= 2) {
                 type = 'close'
+                sounds.play('correct')
                 await Haptics.impact({ style: ImpactStyle.Medium })
             } else {
+                sounds.play('wrong')
                 await Haptics.impact({ style: ImpactStyle.Light })
             }
 

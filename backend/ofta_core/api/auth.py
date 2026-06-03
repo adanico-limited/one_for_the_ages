@@ -4,17 +4,21 @@ Authentication endpoints for OFTA
 """
 
 import os
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 import uuid
 import hashlib
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
 from ofta_core.utils.firebase_auth import get_current_user, verify_firebase_token
 from ofta_core.utils.util_db import get_db_connector
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ────────────────────────────────────────────────
@@ -47,7 +51,9 @@ class UserResponse(BaseModel):
 # ────────────────────────────────────────────────
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/minute")
 async def register_user(
+    _http_request: Request,
     request: RegisterRequest,
     current_user: dict = Depends(get_current_user)
 ):

@@ -34,6 +34,7 @@
     "@capacitor/share": "^7.0.0",
     "@capacitor/splash-screen": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
+    "@sentry/nextjs": "^10.56.0",
     "@tanstack/react-query": "^5.62.0",
     "axios": "^1.7.9",
     "canvas-confetti": "^1.9.4",

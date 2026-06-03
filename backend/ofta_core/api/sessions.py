@@ -5,11 +5,14 @@ Game session endpoints for OFTA
 
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Any
 from datetime import datetime, date
 import uuid
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ofta_core.utils.firebase_auth import get_current_user
 from ofta_core.utils.util_db import get_db_connector
@@ -17,6 +20,7 @@ from ofta_core.utils.util_db import get_db_connector
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ────────────────────────────────────────────────
@@ -81,7 +85,9 @@ class EndSessionResponse(BaseModel):
 # ────────────────────────────────────────────────
 
 @router.post("/start", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
 async def start_session(
+    _http_request: Request,
     request: StartSessionRequest,
     current_user: dict = Depends(get_current_user)
 ):

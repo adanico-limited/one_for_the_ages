@@ -37,3 +37,4 @@ google-cloud-storage==2.14.0
 # Testing (optional)
 pytest==8.3.4
 pytest-asyncio==0.24.0
+slowapi>=0.1.9

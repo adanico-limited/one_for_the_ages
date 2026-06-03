@@ -15,6 +15,9 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from starlette.datastructures import State
 
@@ -63,6 +66,13 @@ app = FastAPI(
 app.state = cast(State, app.state)
 
 # ───────────────────────────
+#  Rate limiting
+# ───────────────────────────
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ───────────────────────────
 #  CORS (configurable via env)
 # ───────────────────────────
 _default_origins = [
@@ -99,15 +109,6 @@ async def secure_headers(request: Request, call_next):
         resp.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return resp
 
-
-# ───────────────────────────
-#  Rate limiting (TODO)
-# ───────────────────────────
-# TODO: Add rate limiting with slowapi or similar
-# from slowapi import Limiter
-# limiter = Limiter(key_func=get_remote_address)
-# app.state.limiter = limiter
-# Apply @limiter.limit("10/minute") to sensitive endpoints
 
 
 # ───────────────────────────
