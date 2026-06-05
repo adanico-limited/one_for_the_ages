@@ -99,25 +99,25 @@ async def start_session(
     db = get_db_connector()
     
     # Dev mock - only in development environment
-    if current_user.get("firebase_uid") == "dev_user_123":
+    is_dev = current_user.get("firebase_uid") == "dev_user_123"
+    if is_dev:
         if os.getenv("ENVIRONMENT") != "development":
             raise HTTPException(status_code=403, detail="Dev users not allowed in this environment")
-        # Use real celebrities so the dev experience mirrors production
-        current_user = {"firebase_uid": "dev_user_123", "id": "dev_user_id_123"}
-    
-    # Get user from database
-    user_df = db.select_df(
-        "SELECT id FROM ofta_prod.ofta_user_account WHERE firebase_uid = :firebase_uid",
-        params={"firebase_uid": current_user["firebase_uid"]}
-    )
-    
-    if user_df.empty:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found. Please register first."
+        user_id = "00000000-0000-0000-0000-000000000001"
+    else:
+        # Get user from database
+        user_df = db.select_df(
+            "SELECT id FROM ofta_prod.ofta_user_account WHERE firebase_uid = :firebase_uid",
+            params={"firebase_uid": current_user["firebase_uid"]}
         )
-    
-    user_id = user_df.iloc[0]['id']
+
+        if user_df.empty:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found. Please register first."
+            )
+
+        user_id = user_df.iloc[0]['id']
     session_id = str(uuid.uuid4())
     
     # Generate questions (simplified for MVP - fetch random active questions)

@@ -1,6 +1,7 @@
 'use client'
 
 import { ReactNode } from 'react'
+import Image from 'next/image'
 
 interface AppShellProps {
     children: ReactNode
@@ -10,6 +11,16 @@ interface AppShellProps {
 export const AppShell = ({ children, className = '' }: AppShellProps) => {
     return (
         <main className={`min-h-screen w-full max-w-md mx-auto ${className}`}>
+            <div className="fixed top-3 left-3 z-50 pointer-events-none select-none" style={{ mixBlendMode: 'screen' }}>
+                <Image
+                    src="/images/logo.png"
+                    alt="OFTA"
+                    width={54}
+                    height={20}
+                    className="opacity-50"
+                    priority
+                />
+            </div>
             {children}
         </main>
     )
