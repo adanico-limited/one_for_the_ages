@@ -11,7 +11,7 @@ interface AppShellProps {
 export const AppShell = ({ children, className = '' }: AppShellProps) => {
     return (
         <main className={`min-h-screen w-full max-w-md mx-auto ${className}`}>
-            <div className="fixed top-3 left-3 z-50 pointer-events-none select-none" style={{ mixBlendMode: 'screen' }}>
+            <div className="absolute top-3 left-3 z-50 pointer-events-none select-none" style={{ mixBlendMode: 'screen' }}>
                 <Image
                     src="/images/logo.png"
                     alt="OFTA"
