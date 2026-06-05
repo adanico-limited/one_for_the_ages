@@ -116,7 +116,15 @@ class APIClient {
 
     async endSession(sessionId: string) {
         const { data } = await this.client.post(`/v1/sessions/${sessionId}/end`)
-        return data
+        return {
+            totalScore: data.total_score,
+            questionsCount: data.questions_count,
+            correctCount: data.correct_count,
+            bestStreak: data.best_streak,
+            accuracy: data.accuracy,
+            lifetimeScore: data.lifetime_score,
+            globalRank: data.global_rank,
+        }
     }
 
     // ────────────────────────────────────────────────

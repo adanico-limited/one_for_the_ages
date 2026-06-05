@@ -252,16 +252,14 @@ async def start_session(
                 today = date.today()
                 correct_age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
                 
-                # Generate distractors (3 wrong options)
-                distractors = set()
-                while len(distractors) < 3:
-                    # Random deviation roughly between 3 and 12 years (mix of +/-)
-                    diff = random.choice([i for i in range(-12, 13) if abs(i) >= 3])
-                    d = correct_age + diff
-                    if 16 <= d <= 100 and d != correct_age:
-                        distractors.add(d)
-                
-                options = list(distractors) + [correct_age]
+                # Distractor spread scales with difficulty:
+                # difficulty 1 → ±1yr, 2 → ±2yr, 3 → ±3yr, 4-5 → ±4yr
+                spread = min(row['difficulty'], 4)
+                pool = [correct_age + d for d in range(-spread, spread + 1)
+                        if d != 0 and 16 <= correct_age + d <= 100]
+                distractors = random.sample(pool, min(3, len(pool)))
+
+                options = distractors + [correct_age]
                 random.shuffle(options)
                 question.options = options
         
