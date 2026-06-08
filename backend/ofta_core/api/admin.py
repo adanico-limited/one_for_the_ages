@@ -32,10 +32,10 @@ router = APIRouter(dependencies=[Depends(verify_admin_key)])
 # Stats
 # ────────────────────────────────────────────────
 
-@router.get("/stats/celebrities")
-async def stats_celebrities():
+@router.get("/stats/persons")
+async def stats_persons():
     db = get_db_connector()
-    df = db.select_df("SELECT COUNT(*) as count FROM ofta_prod.ofta_celebrity")
+    df = db.select_df("SELECT COUNT(*) as count FROM ofta_prod.ofta_person")
     return {"count": int(df.iloc[0]['count']) if not df.empty else 0}
 
 
@@ -64,7 +64,7 @@ async def stats_sessions():
 # Celebrities CRUD
 # ────────────────────────────────────────────────
 
-class CelebrityCreateRequest(BaseModel):
+class PersonCreateRequest(BaseModel):
     full_name: str
     date_of_birth: str
     star_sign: str
@@ -77,25 +77,25 @@ class CelebrityCreateRequest(BaseModel):
     hints_hard: Optional[list] = []
 
 
-class CelebrityUpdateRequest(BaseModel):
+class PersonUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
     full_name: Optional[str] = None
     popularity_score: Optional[float] = None
 
 
-@router.get("/celebrities")
-async def list_celebrities():
+@router.get("/persons")
+async def list_persons():
     db = get_db_connector()
     df = db.select_df("""
         SELECT id, full_name, date_of_birth, star_sign, primary_category,
                nationality, gender, popularity_score, is_active, created_at_tms
-        FROM ofta_prod.ofta_celebrity
+        FROM ofta_prod.ofta_person
         ORDER BY full_name
     """)
 
-    celebrities = []
+    persons = []
     for _, row in df.iterrows():
-        celebrities.append({
+        persons.append({
             "id": str(row['id']),
             "full_name": row['full_name'],
             "date_of_birth": str(row['date_of_birth']),
@@ -108,17 +108,17 @@ async def list_celebrities():
             "created_at_tms": str(row.get('created_at_tms', '')),
         })
 
-    return {"celebrities": celebrities}
+    return {"persons": persons}
 
 
-@router.post("/celebrities")
-async def create_celebrity(request: CelebrityCreateRequest):
+@router.post("/persons")
+async def create_person(request: PersonCreateRequest):
     db = get_db_connector()
-    celeb_id = str(uuid.uuid4())
+    person_id = str(uuid.uuid4())
 
     db.execute_query(
         """
-        INSERT INTO ofta_prod.ofta_celebrity (
+        INSERT INTO ofta_prod.ofta_person (
             id, full_name, date_of_birth, star_sign, primary_category,
             nationality, gender, popularity_score, hints_easy, hints_medium, hints_hard
         ) VALUES (
@@ -128,7 +128,7 @@ async def create_celebrity(request: CelebrityCreateRequest):
         )
         """,
         params={
-            "id": celeb_id,
+            "id": person_id,
             "full_name": request.full_name,
             "date_of_birth": request.date_of_birth,
             "star_sign": request.star_sign,
@@ -142,15 +142,15 @@ async def create_celebrity(request: CelebrityCreateRequest):
         }
     )
 
-    return {"id": celeb_id, "status": "created"}
+    return {"id": person_id, "status": "created"}
 
 
-@router.patch("/celebrities/{celeb_id}")
-async def update_celebrity(celeb_id: str, request: CelebrityUpdateRequest):
+@router.patch("/persons/{person_id}")
+async def update_person(person_id: str, request: PersonUpdateRequest):
     db = get_db_connector()
 
     updates = []
-    params = {"id": celeb_id}
+    params = {"id": person_id}
 
     if request.is_active is not None:
         updates.append("is_active = :is_active")
@@ -171,7 +171,7 @@ async def update_celebrity(celeb_id: str, request: CelebrityUpdateRequest):
     set_clause = ", ".join(updates)
 
     db.execute_query(
-        f"UPDATE ofta_prod.ofta_celebrity SET {set_clause} WHERE id = :id",
+        f"UPDATE ofta_prod.ofta_person SET {set_clause} WHERE id = :id",
         params=params
     )
 
@@ -193,13 +193,13 @@ async def list_questions():
     df = db.select_df("""
         SELECT 
             qt.id, qt.mode, qt.difficulty, qt.is_active,
-            c.full_name as celebrity_name,
-            ca.full_name as celebrity_a_name,
-            cb.full_name as celebrity_b_name
+            c.full_name as person_name,
+            ca.full_name as person_a_name,
+            cb.full_name as person_b_name
         FROM ofta_prod.ofta_question_template qt
-        LEFT JOIN ofta_prod.ofta_celebrity c ON qt.celebrity_id = c.id
-        LEFT JOIN ofta_prod.ofta_celebrity ca ON qt.celebrity_id_a = ca.id
-        LEFT JOIN ofta_prod.ofta_celebrity cb ON qt.celebrity_id_b = cb.id
+        LEFT JOIN ofta_prod.ofta_person c ON qt.person_id = c.id
+        LEFT JOIN ofta_prod.ofta_person ca ON qt.person_id_a = ca.id
+        LEFT JOIN ofta_prod.ofta_person cb ON qt.person_id_b = cb.id
         ORDER BY qt.mode, qt.difficulty
     """)
 
@@ -210,9 +210,9 @@ async def list_questions():
             "mode": row['mode'],
             "difficulty": int(row['difficulty']),
             "is_active": bool(row.get('is_active', True)),
-            "celebrity_name": row.get('celebrity_name'),
-            "celebrity_a_name": row.get('celebrity_a_name'),
-            "celebrity_b_name": row.get('celebrity_b_name'),
+            "person_name": row.get('person_name'),
+            "person_a_name": row.get('person_a_name'),
+            "person_b_name": row.get('person_b_name'),
         })
 
     return {"questions": questions}
@@ -401,19 +401,19 @@ async def analytics_active_users():
 # Bulk Import
 # ────────────────────────────────────────────────
 
-@router.post("/celebrities/bulk-import")
-async def bulk_import_celebrities(celebrities: List[CelebrityCreateRequest]):
-    """Bulk import celebrities from a list."""
+@router.post("/persons/bulk-import")
+async def bulk_import_persons(persons: List[PersonCreateRequest]):
+    """Bulk import persons from a list."""
     db = get_db_connector()
     created = 0
     errors = []
 
-    for celeb in celebrities:
+    for celeb in persons:
         try:
-            celeb_id = str(uuid.uuid4())
+            person_id = str(uuid.uuid4())
             db.execute_query(
                 """
-                INSERT INTO ofta_prod.ofta_celebrity (
+                INSERT INTO ofta_prod.ofta_person (
                     id, full_name, date_of_birth, star_sign, primary_category,
                     nationality, gender, popularity_score,
                     hints_easy, hints_medium, hints_hard
@@ -424,7 +424,7 @@ async def bulk_import_celebrities(celebrities: List[CelebrityCreateRequest]):
                 )
                 """,
                 params={
-                    "id": celeb_id,
+                    "id": person_id,
                     "full_name": celeb.full_name,
                     "date_of_birth": celeb.date_of_birth,
                     "star_sign": celeb.star_sign,

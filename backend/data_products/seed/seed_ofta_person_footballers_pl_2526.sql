@@ -1,8 +1,8 @@
 -- Seed: Premier League 2025/26 Current Squads
--- ~200 players across all 20 clubs (skips players already seeded in seed_ofta_celebrity_footballers_pl.sql)
+-- ~200 players across all 20 clubs (skips players already seeded in seed_ofta_person_footballers_pl.sql)
 -- Column semantics: see data_products/docs/celebrity_column_semantics.md
 
-INSERT INTO ofta_prod.ofta_celebrity (
+INSERT INTO ofta_prod.ofta_person (
     full_name, date_of_birth, star_sign,
     primary_category, secondary_category,
     nationality, gender,

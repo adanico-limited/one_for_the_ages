@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
 Celebrity Data Seeder for One for the Ages (OFTA)
-Seeds the database with celebrity data and generates question templates.
+Seeds the database with person data and generates question templates.
 
 Usage:
-    python seed_celebrities.py                   # Seed all
-    python seed_celebrities.py --dry-run         # Preview without inserting
-    python seed_celebrities.py --celebrities     # Only celebrities
-    python seed_celebrities.py --questions        # Only question templates
+    python seed_persons.py                   # Seed all
+    python seed_persons.py --dry-run         # Preview without inserting
+    python seed_persons.py --persons     # Only persons
+    python seed_persons.py --questions        # Only question templates
 """
 
 import argparse
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 # CELEBRITY DATA
 # ────────────────────────────────────────────────
 
-CELEBRITIES = [
+PERSONS = [
     # MUSIC
     {"full_name": "Beyoncé", "date_of_birth": "1981-09-04", "star_sign": "Virgo", "primary_category": "Music", "nationality": "American", "gender": "Female", "popularity_score": 98, "hints_easy": ["She's married to Jay-Z", "Queen Bey"], "hints_medium": ["Destiny's Child alumna"], "hints_hard": ["Born in Houston, TX"]},
     {"full_name": "Drake", "date_of_birth": "1986-10-24", "star_sign": "Scorpio", "primary_category": "Music", "nationality": "Canadian", "gender": "Male", "popularity_score": 95, "hints_easy": ["Started on Degrassi", "OVO Sound founder"], "hints_medium": ["From Toronto"], "hints_hard": ["Real name: Aubrey"]},
@@ -116,12 +116,12 @@ def calculate_difficulty(celeb: dict) -> int:
         return 5
 
 
-def seed_celebrities(db, dry_run=False):
-    """Seed celebrity data into the database."""
-    logger.info(f"Seeding {len(CELEBRITIES)} celebrities...")
+def seed_persons(db, dry_run=False):
+    """Seed person data into the database."""
+    logger.info(f"Seeding {len(PERSONS)} persons...")
 
     celeb_records = []
-    for celeb in CELEBRITIES:
+    for celeb in PERSONS:
         record = {
             'id': str(uuid.uuid4()),
             'full_name': celeb['full_name'],
@@ -141,7 +141,7 @@ def seed_celebrities(db, dry_run=False):
     df = pd.DataFrame(celeb_records)
 
     if dry_run:
-        logger.info(f"[DRY RUN] Would insert {len(df)} celebrities")
+        logger.info(f"[DRY RUN] Would insert {len(df)} persons")
         logger.info(f"Categories: {df['primary_category'].value_counts().to_dict()}")
         logger.info(f"Sample:\n{df[['full_name', 'primary_category', 'date_of_birth']].head(10)}")
         return df
@@ -149,30 +149,30 @@ def seed_celebrities(db, dry_run=False):
     # Use upsert (insert or skip on conflict)
     db.insert_df(
         table_schema='da_prod',
-        table_name='ofta_celebrity',
+        table_name='ofta_person',
         df=df,
         on_conflict_do_nothing=True
     )
-    logger.info(f"✅ Inserted {len(df)} celebrities")
+    logger.info(f"✅ Inserted {len(df)} persons")
     return df
 
 
 def seed_question_templates(db, dry_run=False):
-    """Generate question templates from celebrity data."""
+    """Generate question templates from person data."""
     logger.info("Generating question templates...")
 
-    # Get all celebrities
-    celebs_df = db.select_df("SELECT id, full_name, popularity_score FROM da_prod.ofta_celebrity WHERE is_active = TRUE")
+    # Get all persons
+    celebs_df = db.select_df("SELECT id, full_name, popularity_score FROM da_prod.ofta_person WHERE is_active = TRUE")
 
     if celebs_df.empty:
-        logger.error("No celebrities found! Please seed celebrities first.")
+        logger.error("No persons found! Please seed persons first.")
         return
 
-    logger.info(f"Found {len(celebs_df)} celebrities for question generation")
+    logger.info(f"Found {len(celebs_df)} persons for question generation")
 
     questions = []
 
-    # 1. AGE_GUESS questions (one per celebrity)
+    # 1. AGE_GUESS questions (one per person)
     for _, celeb in celebs_df.iterrows():
         pop = float(celeb.get('popularity_score', 50))
         difficulty = 1 if pop >= 95 else 2 if pop >= 90 else 3 if pop >= 85 else 4
@@ -180,26 +180,26 @@ def seed_question_templates(db, dry_run=False):
         questions.append({
             'id': str(uuid.uuid4()),
             'mode': 'AGE_GUESS',
-            'celebrity_id': str(celeb['id']),
-            'celebrity_id_a': None,
-            'celebrity_id_b': None,
+            'person_id': str(celeb['id']),
+            'person_id_a': None,
+            'person_id_b': None,
             'difficulty': difficulty,
             'is_active': True,
         })
 
-    # 2. REVERSE_SIGN questions (one per celebrity)
+    # 2. REVERSE_SIGN questions (one per person)
     for _, celeb in celebs_df.iterrows():
         questions.append({
             'id': str(uuid.uuid4()),
             'mode': 'REVERSE_SIGN',
-            'celebrity_id': str(celeb['id']),
-            'celebrity_id_a': None,
-            'celebrity_id_b': None,
+            'person_id': str(celeb['id']),
+            'person_id_a': None,
+            'person_id_b': None,
             'difficulty': 3,  # Default medium difficulty
             'is_active': True,
         })
 
-    # 3. WHO_OLDER questions (pairs of celebrities)
+    # 3. WHO_OLDER questions (pairs of persons)
     celeb_ids = celebs_df['id'].tolist()
     import itertools
     # Take a subset of pairs to avoid too many
@@ -212,9 +212,9 @@ def seed_question_templates(db, dry_run=False):
         questions.append({
             'id': str(uuid.uuid4()),
             'mode': 'WHO_OLDER',
-            'celebrity_id': None,
-            'celebrity_id_a': str(celeb_ids[i]),
-            'celebrity_id_b': str(celeb_ids[j]),
+            'person_id': None,
+            'person_id_a': str(celeb_ids[i]),
+            'person_id_b': str(celeb_ids[j]),
             'difficulty': 2,
             'is_active': True,
         })
@@ -237,13 +237,13 @@ def seed_question_templates(db, dry_run=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Seed OFTA celebrity data')
+    parser = argparse.ArgumentParser(description='Seed OFTA person data')
     parser.add_argument('--dry-run', action='store_true', help='Preview without inserting')
-    parser.add_argument('--celebrities', action='store_true', help='Only seed celebrities')
+    parser.add_argument('--persons', action='store_true', help='Only seed persons')
     parser.add_argument('--questions', action='store_true', help='Only seed question templates')
     args = parser.parse_args()
 
-    seed_all = not args.celebrities and not args.questions
+    seed_all = not args.persons and not args.questions
 
     try:
         db = get_db_connector()
@@ -252,8 +252,8 @@ def main():
         logger.error(f"❌ Database connection failed: {e}")
         sys.exit(1)
 
-    if seed_all or args.celebrities:
-        seed_celebrities(db, dry_run=args.dry_run)
+    if seed_all or args.persons:
+        seed_persons(db, dry_run=args.dry_run)
 
     if seed_all or args.questions:
         seed_question_templates(db, dry_run=args.dry_run)

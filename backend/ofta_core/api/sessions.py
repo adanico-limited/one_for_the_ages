@@ -36,12 +36,15 @@ class StartSessionRequest(BaseModel):
 class QuestionResponse(BaseModel):
     id: str
     mode: str
-    celebrity_id: Optional[str] = None
-    celebrity_id_a: Optional[str] = None
-    celebrity_id_b: Optional[str] = None
-    celebrity_name: Optional[str] = None
-    celebrity_name_a: Optional[str] = None
-    celebrity_name_b: Optional[str] = None
+    person_id: Optional[str] = None
+    person_id_a: Optional[str] = None
+    person_id_b: Optional[str] = None
+    person_name: Optional[str] = None
+    person_name_a: Optional[str] = None
+    person_name_b: Optional[str] = None
+    person_image_url: Optional[str] = None
+    person_image_url_a: Optional[str] = None
+    person_image_url_b: Optional[str] = None
     difficulty: int
     hints: List[str] = []
     options: List[Any] = []
@@ -127,19 +130,21 @@ async def start_session(
     if body.mode == "WHO_OLDER":
         questions_df = db.select_df(
             """
-            SELECT 
+            SELECT
                 qt.id,
                 qt.mode,
-                qt.celebrity_id_a,
-                qt.celebrity_id_b,
+                qt.person_id_a,
+                qt.person_id_b,
                 qt.difficulty,
-                ca.full_name as celebrity_name_a,
-                cb.full_name as celebrity_name_b,
+                ca.full_name as person_name_a,
+                cb.full_name as person_name_b,
+                ca.image_url as person_image_url_a,
+                cb.image_url as person_image_url_b,
                 ca.hints_easy as hints_a,
                 cb.hints_easy as hints_b
             FROM ofta_prod.ofta_question_template qt
-            JOIN ofta_prod.ofta_celebrity ca ON qt.celebrity_id_a = ca.id
-            JOIN ofta_prod.ofta_celebrity cb ON qt.celebrity_id_b = cb.id
+            JOIN ofta_prod.ofta_person ca ON qt.person_id_a = ca.id
+            JOIN ofta_prod.ofta_person cb ON qt.person_id_b = cb.id
             WHERE qt.mode = 'WHO_OLDER' AND qt.is_active = TRUE
             ORDER BY RANDOM()
             LIMIT :limit
@@ -150,18 +155,19 @@ async def start_session(
         # AGE_GUESS, REVERSE modes
         questions_df = db.select_df(
             """
-            SELECT 
+            SELECT
                 qt.id,
                 qt.mode,
-                qt.celebrity_id,
+                qt.person_id,
                 qt.difficulty,
-                c.full_name as celebrity_name,
+                c.full_name as person_name,
+                c.image_url as person_image_url,
                 c.hints_easy as hints,
                 c.star_sign,
                 c.date_of_birth,
                 EXTRACT(YEAR FROM c.date_of_birth) as dob_year
             FROM ofta_prod.ofta_question_template qt
-            JOIN ofta_prod.ofta_celebrity c ON qt.celebrity_id = c.id
+            JOIN ofta_prod.ofta_person c ON qt.person_id = c.id
             WHERE qt.mode = :mode AND qt.is_active = TRUE
             ORDER BY RANDOM()
             LIMIT :limit
@@ -210,18 +216,21 @@ async def start_session(
         )
 
         if body.mode == "WHO_OLDER":
-            question.celebrity_id_a = str(row['celebrity_id_a'])
-            question.celebrity_id_b = str(row['celebrity_id_b'])
-            question.celebrity_name_a = row['celebrity_name_a']
-            question.celebrity_name_b = row['celebrity_name_b']
-            # correct_answer: which celebrity is older (a or b)
+            question.person_id_a = str(row['person_id_a'])
+            question.person_id_b = str(row['person_id_b'])
+            question.person_name_a = row['person_name_a']
+            question.person_name_b = row['person_name_b']
+            question.person_image_url_a = row.get('person_image_url_a')
+            question.person_image_url_b = row.get('person_image_url_b')
+            # correct_answer: which person is older (a or b)
             dob_a = row['dob_a'] if 'dob_a' in row else None
             dob_b = row['dob_b'] if 'dob_b' in row else None
             if dob_a and dob_b:
                 question.correct_answer = {"older": "a" if dob_a < dob_b else "b"}
         else:
-            question.celebrity_id = str(row['celebrity_id'])
-            question.celebrity_name = row['celebrity_name']
+            question.person_id = str(row['person_id'])
+            question.person_name = row['person_name']
+            question.person_image_url = row.get('person_image_url')
 
             if body.mode == "REVERSE_SIGN":
                 correct_sign = row['star_sign']
@@ -316,7 +325,7 @@ async def submit_answer(
             f"from session {session_id}, question {request.question_index}"
         )
 
-    # Get question and celebrity data
+    # Get question and person data
     question_df = db.select_df(
         """
         SELECT 
@@ -326,9 +335,9 @@ async def submit_answer(
             ca.date_of_birth as dob_a,
             cb.date_of_birth as dob_b
         FROM ofta_prod.ofta_question_template qt
-        LEFT JOIN ofta_prod.ofta_celebrity c ON qt.celebrity_id = c.id
-        LEFT JOIN ofta_prod.ofta_celebrity ca ON qt.celebrity_id_a = ca.id
-        LEFT JOIN ofta_prod.ofta_celebrity cb ON qt.celebrity_id_b = cb.id
+        LEFT JOIN ofta_prod.ofta_person c ON qt.person_id = c.id
+        LEFT JOIN ofta_prod.ofta_person ca ON qt.person_id_a = ca.id
+        LEFT JOIN ofta_prod.ofta_person cb ON qt.person_id_b = cb.id
         WHERE qt.id = :question_id
         """,
         params={"question_id": request.question_template_id}

@@ -166,8 +166,8 @@ export default function DailyChallengePage() {
             }
 
             setFeedback(result.is_correct
-                ? `Correct! ${currentQuestion.celebrity_name} is ${result.correct_answer.age}.`
-                : `${currentQuestion.celebrity_name} is ${result.correct_answer.age}.`
+                ? `Correct! ${currentQuestion.person_name} is ${result.correct_answer.age}.`
+                : `${currentQuestion.person_name} is ${result.correct_answer.age}.`
             )
 
             setTimeout(() => {
@@ -306,7 +306,7 @@ export default function DailyChallengePage() {
                             How old is...
                         </h2>
                         <h3 className="font-serif text-4xl md:text-6xl text-text-primary leading-tight tracking-tight">
-                            {currentQuestion.celebrity_name}?
+                            {currentQuestion.person_name}?
                         </h3>
                     </div>
 

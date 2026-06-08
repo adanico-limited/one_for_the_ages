@@ -19,7 +19,7 @@ router = APIRouter()
 # Response Models
 # ────────────────────────────────────────────────
 
-class CelebrityBrief(BaseModel):
+class PersonBrief(BaseModel):
     id: str
     full_name: str
     primary_category: str
@@ -31,9 +31,9 @@ class PackQuestion(BaseModel):
     id: str
     mode: str
     difficulty: int
-    celebrity: Optional[CelebrityBrief] = None
-    celebrity_a: Optional[CelebrityBrief] = None
-    celebrity_b: Optional[CelebrityBrief] = None
+    person: Optional[PersonBrief] = None
+    person_a: Optional[PersonBrief] = None
+    person_b: Optional[PersonBrief] = None
 
 
 class DailyPackResponse(BaseModel):
@@ -82,9 +82,9 @@ async def get_daily_pack(
             qt.id,
             qt.mode,
             qt.difficulty,
-            qt.celebrity_id,
-            qt.celebrity_id_a,
-            qt.celebrity_id_b,
+            qt.person_id,
+            qt.person_id_a,
+            qt.person_id_b,
             c.id as celeb_id,
             c.full_name as celeb_name,
             c.primary_category as celeb_category,
@@ -101,9 +101,9 @@ async def get_daily_pack(
             cb.nationality as celeb_b_nationality,
             cb.hints_easy as celeb_b_hints
         FROM ofta_prod.ofta_question_template qt
-        LEFT JOIN ofta_prod.ofta_celebrity c ON qt.celebrity_id = c.id
-        LEFT JOIN ofta_prod.ofta_celebrity ca ON qt.celebrity_id_a = ca.id
-        LEFT JOIN ofta_prod.ofta_celebrity cb ON qt.celebrity_id_b = cb.id
+        LEFT JOIN ofta_prod.ofta_person c ON qt.person_id = c.id
+        LEFT JOIN ofta_prod.ofta_person ca ON qt.person_id_a = ca.id
+        LEFT JOIN ofta_prod.ofta_person cb ON qt.person_id_b = cb.id
         WHERE qt.is_active = TRUE
         ORDER BY md5(qt.id::text || :date_seed)
         LIMIT 10
@@ -126,8 +126,8 @@ async def get_daily_pack(
             difficulty=row['difficulty'],
         )
 
-        if row['celebrity_id'] is not None:
-            q.celebrity = CelebrityBrief(
+        if row['person_id'] is not None:
+            q.person = PersonBrief(
                 id=str(row['celeb_id']),
                 full_name=row['celeb_name'],
                 primary_category=row['celeb_category'],
@@ -135,15 +135,15 @@ async def get_daily_pack(
                 hints_easy=row.get('celeb_hints', []) or [],
             )
 
-        if row['celebrity_id_a'] is not None:
-            q.celebrity_a = CelebrityBrief(
+        if row['person_id_a'] is not None:
+            q.person_a = PersonBrief(
                 id=str(row['celeb_a_id']),
                 full_name=row['celeb_a_name'],
                 primary_category=row['celeb_a_category'],
                 nationality=row.get('celeb_a_nationality'),
                 hints_easy=row.get('celeb_a_hints', []) or [],
             )
-            q.celebrity_b = CelebrityBrief(
+            q.person_b = PersonBrief(
                 id=str(row['celeb_b_id']),
                 full_name=row['celeb_b_name'],
                 primary_category=row['celeb_b_category'],

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/ui/Layout'
-import { CelebrityImage } from '@/components/ui/CelebrityImage'
+import { PersonImage } from '@/components/ui/PersonImage'
 import { GameLoadingSkeleton } from '@/components/ui/SkeletonLoader'
 import { GamePauseModal } from '@/components/game/GamePauseModal'
 import { HintModal } from '@/components/game/HintModal'
@@ -198,11 +198,12 @@ export default function AgeGuessPage() {
                 />
             </div>
 
-            {/* 2️⃣ Celebrity Card */}
+            {/* 2️⃣ Person Card */}
             <div className="flex-1 flex flex-col items-center justify-center space-y-8 pb-12">
                 <div className="relative w-full max-w-[280px] aspect-square group">
-                    <CelebrityImage
-                        name={currentQuestion.celebrity_name!}
+                    <PersonImage
+                        name={currentQuestion.person_name!}
+                        imageUrl={currentQuestion.person_image_url}
                         size="xl"
                         rounded="sharp"
                         className="transition-transform duration-700 group-hover:scale-105"
@@ -219,7 +220,7 @@ export default function AgeGuessPage() {
 
                 <div className="text-center space-y-2">
                     <h2 className="font-serif text-3xl text-text-primary leading-tight">
-                        {currentQuestion.celebrity_name}
+                        {currentQuestion.person_name}
                     </h2>
                     {feedback.type && (
                         <p className={`font-montserrat font-bold text-xs tracking-[0.2em] uppercase ${feedback.type === 'spot-on' ? 'text-green-400' : 'text-primary'}`}>

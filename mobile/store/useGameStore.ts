@@ -8,13 +8,16 @@ import { create } from 'zustand'
 export interface Question {
     id: string
     mode: string
-    celebrity_id?: string
-    celebrity_id_a?: string
-    celebrity_id_b?: string
+    person_id?: string
+    person_id_a?: string
+    person_id_b?: string
     difficulty: number
-    celebrity_name?: string
-    celebrity_name_a?: string
-    celebrity_name_b?: string
+    person_name?: string
+    person_name_a?: string
+    person_name_b?: string
+    person_image_url?: string | null
+    person_image_url_a?: string | null
+    person_image_url_b?: string | null
     hints: string[]
     options: (string | number)[]
     correct_answer: Record<string, unknown> | null

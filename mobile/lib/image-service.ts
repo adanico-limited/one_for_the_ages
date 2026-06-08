@@ -1,12 +1,12 @@
 /**
- * Image Service for Celebrity Photos
+ * Image Service for Person Photos
  * Handles image URL generation, caching, and fallback strategies
  */
 
 // For now, using a placeholder service that generates realistic-looking image URLs
-// In production, this would connect to your celebrity image database/API
+// In production, this would connect to your person image database/API
 
-interface CelebrityImage {
+interface PersonImage {
     url: string
     source: 'real' | 'ai-generated' | 'placeholder'
     quality: 'high' | 'medium' | 'low'
@@ -27,21 +27,21 @@ const IMAGE_SIZES = {
 type ImageSize = keyof typeof IMAGE_SIZES
 
 /**
- * Generates a celebrity image URL
+ * Generates a person image URL
  * Currently uses placeholder.com, but in production would use your image service
  */
-export const getCelebrityImageUrl = (
-    celebrityName: string,
+export const getPersonImageUrl = (
+    personName: string,
     size: ImageSize = 'card',
     quality: 'high' | 'medium' | 'low' = 'medium'
-): CelebrityImage => {
+): PersonImage => {
     const dimensions = IMAGE_SIZES[size]
 
     // Simulate a realistic fallback strategy
     // In production, you'd check your database first, then AI-generated, then placeholder
 
-    // For demo purposes, generate different URLs based on celebrity name
-    const nameHash = celebrityName.split('').reduce((a, b) => {
+    // For demo purposes, generate different URLs based on person name
+    const nameHash = personName.split('').reduce((a, b) => {
         a = ((a << 5) - a) + b.charCodeAt(0)
         return a & a
     }, 0)
@@ -50,7 +50,7 @@ export const getCelebrityImageUrl = (
     const hasRealPhoto = Math.abs(nameHash) % 3 === 0
 
     if (hasRealPhoto) {
-        // In production: return real celebrity photo URL
+        // In production: return real person photo URL
         return {
             url: `https://picsum.photos/${dimensions.width}/${dimensions.height}?random=${Math.abs(nameHash)}`,
             source: 'real',
@@ -72,7 +72,7 @@ export const getCelebrityImageUrl = (
 
     // Fallback to placeholder
     return {
-        url: `https://via.placeholder.com/${dimensions.width}x${dimensions.height}/6366f1/ffffff?text=${encodeURIComponent(celebrityName)}`,
+        url: `https://via.placeholder.com/${dimensions.width}x${dimensions.height}/6366f1/ffffff?text=${encodeURIComponent(personName)}`,
         source: 'placeholder',
         quality: 'low'
     }
@@ -93,23 +93,23 @@ export const preloadImage = (url: string): Promise<HTMLImageElement> => {
 /**
  * Cache for loaded images
  */
-const imageCache = new Map<string, CelebrityImage>()
+const imageCache = new Map<string, PersonImage>()
 
 /**
  * Gets cached image or fetches new one
  */
-export const getCachedCelebrityImage = (
-    celebrityName: string,
+export const getCachedPersonImage = (
+    personName: string,
     size: ImageSize = 'card',
     quality: 'high' | 'medium' | 'low' = 'medium'
-): CelebrityImage => {
-    const cacheKey = `${celebrityName}-${size}-${quality}`
+): PersonImage => {
+    const cacheKey = `${personName}-${size}-${quality}`
 
     if (imageCache.has(cacheKey)) {
         return imageCache.get(cacheKey)!
     }
 
-    const image = getCelebrityImageUrl(celebrityName, size, quality)
+    const image = getPersonImageUrl(personName, size, quality)
     imageCache.set(cacheKey, image)
 
     return image

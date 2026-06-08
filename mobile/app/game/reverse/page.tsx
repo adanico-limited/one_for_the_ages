@@ -8,7 +8,7 @@ import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { sounds } from '@/lib/sounds'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
-import { CelebrityImage } from '@/components/ui/CelebrityImage'
+import { PersonImage } from '@/components/ui/PersonImage'
 import { Card } from '@/components/ui/Card'
 import { GameLoadingSkeleton } from '@/components/ui/SkeletonLoader'
 import { AppShell } from '@/components/ui/Layout'
@@ -196,11 +196,12 @@ export default function ReverseModePage() {
                         </p>
                     </div>
 
-                    {/* Celebrity Card */}
+                    {/* Person Card */}
                     <div className="relative group">
                         <div className="aspect-[4/5] w-full overflow-hidden rounded-sharp border-sharp border-border-subtle bg-surface">
-                            <CelebrityImage
-                                name={currentQuestion.celebrity_name!}
+                            <PersonImage
+                                name={currentQuestion.person_name!}
+                                imageUrl={currentQuestion.person_image_url}
                                 size="xl"
                                 rounded="sharp"
                                 className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-700"
@@ -208,7 +209,7 @@ export default function ReverseModePage() {
                         </div>
                         <div className="mt-4 text-center">
                             <h2 className="text-2xl font-bold tracking-tight text-text-primary uppercase">
-                                {currentQuestion.celebrity_name}
+                                {currentQuestion.person_name}
                             </h2>
                         </div>
                     </div>

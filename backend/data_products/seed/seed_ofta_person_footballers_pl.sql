@@ -2,7 +2,7 @@
 -- 66 players across eras with full attribute and known_for data
 -- Column semantics: see data_products/docs/celebrity_column_semantics.md
 
-INSERT INTO ofta_prod.ofta_celebrity (
+INSERT INTO ofta_prod.ofta_person (
     full_name, date_of_birth, star_sign,
     primary_category, secondary_category,
     nationality, gender,

@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getCachedCelebrityImage, preloadImage } from '@/lib/image-service'
+import { getCachedPersonImage, preloadImage } from '@/lib/image-service'
 import { ImagePlaceholder } from './ImagePlaceholder'
 import { logger } from '@/lib/logger'
 
-interface EnhancedCelebrityImageProps {
+interface EnhancedPersonImageProps {
     name: string
     size?: 'hero' | 'card' | 'thumbnail' | 'avatar'
     className?: string
@@ -59,7 +59,7 @@ const getInitials = (name: string): string => {
         .toUpperCase()
 }
 
-export const EnhancedCelebrityImage = ({
+export const EnhancedPersonImage = ({
     name,
     size = 'card',
     className = '',
@@ -67,7 +67,7 @@ export const EnhancedCelebrityImage = ({
     showFallback = true,
     aspectRatio = 'portrait',
     children
-}: EnhancedCelebrityImageProps) => {
+}: EnhancedPersonImageProps) => {
     const [imageState, setImageState] = useState<'loading' | 'loaded' | 'error'>('loading')
     const [imageUrl, setImageUrl] = useState<string | null>(null)
 
@@ -77,9 +77,9 @@ export const EnhancedCelebrityImage = ({
     useEffect(() => {
         const loadImage = async () => {
             try {
-                const celebrityImage = getCachedCelebrityImage(name, size, quality)
-                await preloadImage(celebrityImage.url)
-                setImageUrl(celebrityImage.url)
+                const personImage = getCachedPersonImage(name, size, quality)
+                await preloadImage(personImage.url)
+                setImageUrl(personImage.url)
                 setImageState('loaded')
             } catch (error) {
                 logger.warn(`Failed to load image for ${name}:`, error)

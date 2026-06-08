@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_ofta_user_created ON da_prod.ofta_user_account(cr
 -- ================================================
 -- CELEBRITY
 -- ================================================
-CREATE TABLE IF NOT EXISTS da_prod.ofta_celebrity (
+CREATE TABLE IF NOT EXISTS da_prod.ofta_person (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     full_name           TEXT NOT NULL,
     date_of_birth       DATE NOT NULL,
@@ -52,11 +52,11 @@ CREATE TABLE IF NOT EXISTS da_prod.ofta_celebrity (
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_ofta_celebrity_category ON da_prod.ofta_celebrity(primary_category);
-CREATE INDEX IF NOT EXISTS idx_ofta_celebrity_active ON da_prod.ofta_celebrity(is_active);
-CREATE INDEX IF NOT EXISTS idx_ofta_celebrity_popularity ON da_prod.ofta_celebrity(popularity_score DESC);
-CREATE INDEX IF NOT EXISTS idx_ofta_celebrity_name ON da_prod.ofta_celebrity(full_name);
-CREATE INDEX IF NOT EXISTS idx_ofta_celebrity_career_status ON da_prod.ofta_celebrity(career_status);
+CREATE INDEX IF NOT EXISTS idx_ofta_person_category ON da_prod.ofta_person(primary_category);
+CREATE INDEX IF NOT EXISTS idx_ofta_person_active ON da_prod.ofta_person(is_active);
+CREATE INDEX IF NOT EXISTS idx_ofta_person_popularity ON da_prod.ofta_person(popularity_score DESC);
+CREATE INDEX IF NOT EXISTS idx_ofta_person_name ON da_prod.ofta_person(full_name);
+CREATE INDEX IF NOT EXISTS idx_ofta_person_career_status ON da_prod.ofta_person(career_status);
 
 -- ================================================
 -- QUESTION TEMPLATE
@@ -66,27 +66,27 @@ CREATE TABLE IF NOT EXISTS da_prod.ofta_question_template (
     mode            TEXT NOT NULL CHECK (mode IN (
                         'AGE_GUESS', 'WHO_OLDER', 'REVERSE_DOB', 'REVERSE_SIGN'
                     )),
-    celebrity_id    UUID REFERENCES da_prod.ofta_celebrity(id),
-    celebrity_id_a  UUID REFERENCES da_prod.ofta_celebrity(id),
-    celebrity_id_b  UUID REFERENCES da_prod.ofta_celebrity(id),
+    person_id    UUID REFERENCES da_prod.ofta_person(id),
+    person_id_a  UUID REFERENCES da_prod.ofta_person(id),
+    person_id_b  UUID REFERENCES da_prod.ofta_person(id),
     difficulty      INT NOT NULL CHECK (difficulty BETWEEN 1 AND 5),
     is_active       BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW(),
     
-    -- AGE_GUESS/REVERSE: celebrity_id required
-    -- WHO_OLDER: celebrity_id_a + celebrity_id_b required
-    CONSTRAINT chk_ofta_mode_celebs CHECK (
-        (mode IN ('AGE_GUESS', 'REVERSE_DOB', 'REVERSE_SIGN') AND celebrity_id IS NOT NULL)
+    -- AGE_GUESS/REVERSE: person_id required
+    -- WHO_OLDER: person_id_a + person_id_b required
+    CONSTRAINT chk_ofta_mode_persons CHECK (
+        (mode IN ('AGE_GUESS', 'REVERSE_DOB', 'REVERSE_SIGN') AND person_id IS NOT NULL)
         OR
-        (mode = 'WHO_OLDER' AND celebrity_id_a IS NOT NULL AND celebrity_id_b IS NOT NULL)
+        (mode = 'WHO_OLDER' AND person_id_a IS NOT NULL AND person_id_b IS NOT NULL)
     )
 );
 
 CREATE INDEX IF NOT EXISTS idx_ofta_qt_mode ON da_prod.ofta_question_template(mode);
 CREATE INDEX IF NOT EXISTS idx_ofta_qt_difficulty ON da_prod.ofta_question_template(difficulty);
 CREATE INDEX IF NOT EXISTS idx_ofta_qt_active ON da_prod.ofta_question_template(is_active);
-CREATE INDEX IF NOT EXISTS idx_ofta_qt_celebrity ON da_prod.ofta_question_template(celebrity_id);
+CREATE INDEX IF NOT EXISTS idx_ofta_qt_celebrity ON da_prod.ofta_question_template(person_id);
 
 -- ================================================
 -- DAILY PACK

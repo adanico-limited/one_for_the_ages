@@ -1,5 +1,5 @@
 """
-Seed ofta_prod.ofta_celebrity with footballer data from CSV.
+Seed ofta_prod.ofta_person with footballer data from CSV.
 
 - Inserts players not already in the table (matched by full_name, case-insensitive)
 - Updates image_url on existing rows where it is currently NULL and CSV has one
@@ -22,7 +22,7 @@ DB = {
 }
 
 INSERT_SQL = """
-INSERT INTO ofta_prod.ofta_celebrity (
+INSERT INTO ofta_prod.ofta_person (
     full_name, date_of_birth, star_sign, primary_category, secondary_category,
     nationality, gender, popularity_score, image_url, image_license,
     hints_easy, hints_medium, hints_hard, aliases,
@@ -40,13 +40,13 @@ SELECT
     'Clubs',       ARRAY[%(current_team)s],
     true
 WHERE NOT EXISTS (
-    SELECT 1 FROM ofta_prod.ofta_celebrity
+    SELECT 1 FROM ofta_prod.ofta_person
     WHERE LOWER(full_name) = LOWER(%(full_name)s)
 );
 """
 
 UPDATE_IMAGE_SQL = """
-UPDATE ofta_prod.ofta_celebrity
+UPDATE ofta_prod.ofta_person
 SET image_url = %(image_url)s, updated_at_tms = CURRENT_TIMESTAMP
 WHERE LOWER(full_name) = LOWER(%(full_name)s)
   AND image_url IS NULL
@@ -61,7 +61,7 @@ def main(dry_run: bool = False):
     conn = psycopg2.connect(**DB)
     cur = conn.cursor()
 
-    cur.execute("SELECT LOWER(full_name) FROM ofta_prod.ofta_celebrity WHERE primary_category = 'Footballer'")
+    cur.execute("SELECT LOWER(full_name) FROM ofta_prod.ofta_person WHERE primary_category = 'Footballer'")
     existing_names = {row[0] for row in cur.fetchall()}
     print(f"Existing footballers in DB: {len(existing_names)}")
 
@@ -115,7 +115,7 @@ def main(dry_run: bool = False):
         cur2 = conn2.cursor()
         cur2.execute("""
             SELECT secondary_category, COUNT(*), SUM(CASE WHEN image_url IS NOT NULL THEN 1 ELSE 0 END) as with_img
-            FROM ofta_prod.ofta_celebrity
+            FROM ofta_prod.ofta_person
             WHERE primary_category = 'Footballer'
             GROUP BY secondary_category ORDER BY COUNT(*) DESC
         """)

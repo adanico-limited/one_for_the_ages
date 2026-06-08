@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/ui/Layout'
-import { CelebrityImage } from '@/components/ui/CelebrityImage'
+import { PersonImage } from '@/components/ui/PersonImage'
 import { GameLoadingSkeleton } from '@/components/ui/SkeletonLoader'
 import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -240,9 +240,9 @@ export default function WhosOlderPage() {
                 </h1>
             </div>
 
-            {/* 3️⃣ Split Celebrity Layout */}
+            {/* 3️⃣ Split Person Layout */}
             <div className="flex-1 grid grid-cols-2 gap-4 h-full max-h-[440px]">
-                {/* Celebrity A */}
+                {/* Person A */}
                 <button
                     disabled={!!feedback || isPaused}
                     onClick={() => handleSelection('A')}
@@ -252,8 +252,9 @@ export default function WhosOlderPage() {
                         }`}
                 >
                     <div className="flex-1 rounded-sharp overflow-hidden relative">
-                        <CelebrityImage
-                            name={currentQuestion.celebrity_name_a!}
+                        <PersonImage
+                            name={currentQuestion.person_name_a!}
+                            imageUrl={currentQuestion.person_image_url_a}
                             size="full"
                             rounded="sharp"
                             className="w-full h-full object-cover"
@@ -270,12 +271,12 @@ export default function WhosOlderPage() {
                     </div>
                     <div className="py-4 text-center">
                         <h3 className="font-serif text-lg text-text-primary line-clamp-1">
-                            {currentQuestion.celebrity_name_a}
+                            {currentQuestion.person_name_a}
                         </h3>
                     </div>
                 </button>
 
-                {/* Celebrity B */}
+                {/* Person B */}
                 <button
                     disabled={!!feedback || isPaused}
                     onClick={() => handleSelection('B')}
@@ -285,8 +286,9 @@ export default function WhosOlderPage() {
                         }`}
                 >
                     <div className="flex-1 rounded-sharp overflow-hidden relative">
-                        <CelebrityImage
-                            name={currentQuestion.celebrity_name_b!}
+                        <PersonImage
+                            name={currentQuestion.person_name_b!}
+                            imageUrl={currentQuestion.person_image_url_b}
                             size="full"
                             rounded="sharp"
                             className="w-full h-full object-cover"
@@ -303,7 +305,7 @@ export default function WhosOlderPage() {
                     </div>
                     <div className="py-4 text-center">
                         <h3 className="font-serif text-lg text-text-primary line-clamp-1">
-                            {currentQuestion.celebrity_name_b}
+                            {currentQuestion.person_name_b}
                         </h3>
                     </div>
                 </button>

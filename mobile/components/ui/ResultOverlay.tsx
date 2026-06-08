@@ -1,6 +1,6 @@
 'use client'
 
-import { CelebrityImage } from './CelebrityImage'
+import { PersonImage } from './PersonImage'
 import { Card } from './Card'
 import { Button } from './Button'
 import { CheckCircle, X, ArrowRight, Calendar, Cake, Sparkles } from 'lucide-react'
@@ -8,7 +8,7 @@ import { CheckCircle, X, ArrowRight, Calendar, Cake, Sparkles } from 'lucide-rea
 interface ResultOverlayProps {
     isVisible: boolean
     isCorrect: boolean
-    celebrityName: string
+    personName: string
     correctAnswer: any
     userAnswer: any
     scoreAwarded: number
@@ -21,7 +21,7 @@ interface ResultOverlayProps {
 export const ResultOverlay = ({
     isVisible,
     isCorrect,
-    celebrityName,
+    personName,
     correctAnswer,
     userAnswer,
     scoreAwarded,
@@ -93,11 +93,11 @@ export const ResultOverlay = ({
                         )}
                     </div>
 
-                    {/* Celebrity Info */}
+                    {/* Person Info */}
                     <div className="flex items-center gap-4 p-4 bg-surface rounded-sharp">
-                        <CelebrityImage name={celebrityName} size="md" />
+                        <PersonImage name={personName} size="md" />
                         <div className="flex-1 space-y-1">
-                            <h4 className="font-semibold text-text-primary">{celebrityName}</h4>
+                            <h4 className="font-semibold text-text-primary">{personName}</h4>
 
                             {mode === 'age-guess' && (
                                 <div className="space-y-1">
