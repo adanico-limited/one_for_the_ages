@@ -33,7 +33,7 @@ const ZODIAC_SIGNS = [
 
 export default function ReverseModePage() {
     const router = useRouter()
-    const { isAuthenticated } = useAuthStore()
+    const { isAuthenticated, authReady } = useAuthStore()
     const {
         sessionId,
         questions,
@@ -55,6 +55,7 @@ export default function ReverseModePage() {
     const isLastQuestion = currentQuestionIndex === questions.length - 1
 
     useEffect(() => {
+        if (!authReady) return
         if (!isAuthenticated) {
             router.push('/welcome')
             return
@@ -77,13 +78,8 @@ export default function ReverseModePage() {
             }
         }
 
-        if (!sessionId) {
-            initGame()
-        } else {
-            setMode(useGameStore.getState().mode as any)
-            setIsLoading(false)
-        }
-    }, [isAuthenticated, sessionId, router, startGame])
+        initGame()
+    }, [isAuthenticated, authReady, router, startGame])
 
     // Generate options based on mode
     const options = useMemo(() => {

@@ -17,7 +17,7 @@ const TIMER_DURATION = 8000 // 8 seconds
 
 export default function WhosOlderPage() {
     const router = useRouter()
-    const { isAuthenticated } = useAuthStore()
+    const { isAuthenticated, authReady } = useAuthStore()
     const {
         sessionId,
         questions,
@@ -52,6 +52,7 @@ export default function WhosOlderPage() {
     const isLastQuestion = currentQuestionIndex === questions.length - 1
 
     useEffect(() => {
+        if (!authReady) return
         if (!isAuthenticated) {
             router.push('/welcome')
             return
@@ -69,15 +70,10 @@ export default function WhosOlderPage() {
             }
         }
 
-        if (!sessionId) {
-            initGame()
-        } else {
-            setIsLoading(false)
-            startTimer()
-        }
+        initGame()
 
         return () => stopTimer()
-    }, [isAuthenticated, sessionId, router, startGame])
+    }, [isAuthenticated, authReady, router, startGame])
 
     // Timer logic
     const startTimer = () => {

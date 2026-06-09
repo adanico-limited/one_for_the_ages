@@ -16,20 +16,8 @@ export const Skeleton = ({ className = '', width, height }: SkeletonProps) => {
 }
 
 export const GameLoadingSkeleton = () => (
-    <div className="space-y-6">
-        <div className="flex justify-between items-center">
-            <Skeleton width={60} height={36} />
-            <Skeleton width={80} height={36} />
-        </div>
-        <Skeleton width="100%" height={4} />
-        <div className="p-6 space-y-4">
-            <div className="flex justify-center">
-                <Skeleton width={128} height={128} className="rounded-full" />
-            </div>
-            <Skeleton width="60%" height={20} className="mx-auto" />
-            <Skeleton width="80%" height={32} className="mx-auto" />
-        </div>
-        <Skeleton width="100%" height={64} />
-        <Skeleton width="100%" height={56} />
+    <div className="flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="font-sans text-[10px] text-text-muted tracking-[0.3em] uppercase">Loading</p>
     </div>
 )

@@ -8,7 +8,7 @@ import { apiClient } from '@/lib/api-client'
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const unsubscribe = onAuthChange(async (firebaseUser) => {
-            const { setUser, registerUser, oftaUser } = useAuthStore.getState()
+            const { setUser, setAuthReady, registerUser, oftaUser } = useAuthStore.getState()
             if (firebaseUser) {
                 // Always refresh the token so API calls work after page reload
                 const token = await firebaseUser.getIdToken()
@@ -21,6 +21,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(null)
                 apiClient.clearToken()
             }
+            // Signal that Firebase has resolved — safe to act on auth state now
+            setAuthReady()
         })
         return unsubscribe
     }, [])

@@ -1,13 +1,8 @@
 // store/useAuthStore.ts
-/**
- * Auth state management with Zustand
- */
-
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from 'firebase/auth'
 import { apiClient } from '@/lib/api-client'
-import { getIdToken } from '@/lib/firebase'
 import { logger } from '@/lib/logger'
 
 export interface OftaUser {
@@ -26,9 +21,10 @@ interface AuthState {
     user: User | null
     oftaUser: OftaUser | null
     isAuthenticated: boolean
-    isLoading: boolean
+    authReady: boolean      // true once Firebase onAuthStateChanged has fired
 
     setUser: (user: User | null) => void
+    setAuthReady: () => void
     setOftaUser: (oftaUser: OftaUser) => void
     registerUser: (firebaseUser: User) => Promise<void>
     logout: () => void
@@ -36,28 +32,19 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set, get) => ({
+        (set) => ({
             user: null,
             oftaUser: null,
             isAuthenticated: false,
-            isLoading: true,
+            authReady: false,
 
             setUser: (user) => {
-                set({ user, isAuthenticated: !!user, isLoading: false })
-
-                // Set API token
-                if (user) {
-                    getIdToken().then((token) => {
-                        if (token) apiClient.setToken(token)
-                    })
-                } else {
-                    apiClient.clearToken()
-                }
+                set({ user, isAuthenticated: !!user })
             },
 
-            setOftaUser: (oftaUser) => {
-                set({ oftaUser })
-            },
+            setAuthReady: () => set({ authReady: true }),
+
+            setOftaUser: (oftaUser) => set({ oftaUser }),
 
             registerUser: async (firebaseUser) => {
                 try {
@@ -86,6 +73,7 @@ export const useAuthStore = create<AuthState>()(
             name: 'ofta-auth',
             partialize: (state) => ({
                 oftaUser: state.oftaUser,
+                isAuthenticated: state.isAuthenticated,
             }),
         }
     )

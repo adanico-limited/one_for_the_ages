@@ -20,7 +20,7 @@ import Link from 'next/link'
 
 export default function AgeGuessPage() {
     const router = useRouter()
-    const { isAuthenticated } = useAuthStore()
+    const { isAuthenticated, authReady } = useAuthStore()
     const {
         sessionId,
         questions,
@@ -53,6 +53,7 @@ export default function AgeGuessPage() {
     const isLastQuestion = currentQuestionIndex === questions.length - 1
 
     useEffect(() => {
+        if (!authReady) return
         if (!isAuthenticated) {
             router.push('/welcome')
             return
@@ -69,12 +70,8 @@ export default function AgeGuessPage() {
             }
         }
 
-        if (!sessionId) {
-            initGame()
-        } else {
-            setIsLoading(false)
-        }
-    }, [isAuthenticated, sessionId, router, startGame])
+        initGame()
+    }, [isAuthenticated, authReady, router, startGame])
 
     const handleOptionSelect = (id: string | number) => {
         if (isSubmitting || feedback.type) return
