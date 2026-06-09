@@ -76,7 +76,7 @@ export default function LeaderboardPage() {
     return (
         <AppShell>
             {/* Header */}
-            <header className="flex items-center justify-between mb-6">
+            <header className="flex items-center justify-between mb-6 pt-10">
                 <Button variant="ghost" onClick={() => router.push('/')} className="text-text-muted">
                     <ArrowLeft size={18} className="mr-1" /> Back
                 </Button>
