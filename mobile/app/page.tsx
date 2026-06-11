@@ -8,6 +8,7 @@ import { Hourglass, Scale, Star, ArrowRight, SlidersHorizontal } from 'lucide-re
 import Link from 'next/link'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useCategoryStore } from '@/store/useCategoryStore'
+import { useDifficultyStore, getDifficultyParam } from '@/store/useDifficultyStore'
 import { apiClient } from '@/lib/api-client'
 import { calculateLevel } from '@/lib/xp'
 import { logger } from '@/lib/logger'
@@ -24,9 +25,13 @@ interface UserStats {
 export default function Home() {
     const { user: authUser, oftaUser, isAuthenticated, authReady, setUser, setOftaUser } = useAuthStore()
     const { selected: selectedCategories } = useCategoryStore()
+    const { mode: diffMode, level: diffLevel } = useDifficultyStore()
+    const diffIsCustom = diffMode === 'escalating' || diffLevel !== 'easy'
+    const diffLabel = diffMode === 'escalating' ? 'Escalating' : diffLevel.charAt(0).toUpperCase() + diffLevel.slice(1)
     const [currentTime, setCurrentTime] = useState(new Date())
     const [timeLeft, setTimeLeft] = useState('')
     const [stats, setStats] = useState<UserStats | null>(null)
+    const [statsLoading, setStatsLoading] = useState(true)
 
     // Dev Auto-Login Logic — set NEXT_PUBLIC_DEV_AUTO_LOGIN=true in .env.local to enable
     useEffect(() => {
@@ -79,8 +84,15 @@ export default function Home() {
     }, [isAuthenticated, setUser, setOftaUser])
 
     useEffect(() => {
-        if (authReady && isAuthenticated) {
-            apiClient.getUserStats().then(setStats).catch((err) => logger.warn('Failed to load stats:', err))
+        if (authReady) {
+            if (isAuthenticated) {
+                apiClient.getUserStats()
+                    .then(setStats)
+                    .catch((err) => logger.warn('Failed to load stats:', err))
+                    .finally(() => setStatsLoading(false))
+            } else {
+                setStatsLoading(false)
+            }
         }
     }, [isAuthenticated, authReady])
 
@@ -145,12 +157,18 @@ export default function Home() {
                         )}
                     </div>
                     <div className="flex items-center gap-2 font-sans text-[10px] tracking-widest uppercase mt-0.5">
-                        <span className="text-text-muted">Level {user.level}</span>
-                        <span className="text-border-subtle">•</span>
-                        <div className="flex items-center gap-1 text-gold">
-                            <span>{user.streak} Day Streak</span>
-                            <span className="animate-flame drop-shadow-[0_0_8px_rgba(201,162,39,0.5)]">🔥</span>
-                        </div>
+                        {statsLoading ? (
+                            <div className="h-2.5 w-32 bg-surface-raised rounded animate-pulse" />
+                        ) : (
+                        <>
+                            <span className="text-text-muted">Level {user.level}</span>
+                            <span className="text-border-subtle">•</span>
+                            <div className="flex items-center gap-1 text-gold">
+                                <span>{user.streak} Day Streak</span>
+                                <span className="animate-flame drop-shadow-[0_0_8px_rgba(201,162,39,0.5)]">🔥</span>
+                            </div>
+                        </>
+                        )}
                     </div>
                 </header>
 
@@ -183,20 +201,31 @@ export default function Home() {
                         <h2 className="font-sans text-[9px] text-text-muted tracking-[0.3em] uppercase">
                             Game Modes
                         </h2>
-                        <Link
-                            href="/categories"
-                            className={
-                                "flex items-center gap-1.5 font-sans text-[8px] tracking-widest uppercase px-2.5 py-1.5 rounded-sharp border transition-all " +
-                                (selectedCategories.length > 0
-                                    ? "bg-primary/15 border-primary text-primary"
-                                    : "border-border-subtle text-text-muted hover:border-gold/30")
-                            }
-                        >
-                            <SlidersHorizontal size={10} />
-                            {selectedCategories.length > 0
-                                ? getCategoryLabel(selectedCategories)
-                                : "Categories"}
-                        </Link>
+                        <div className="flex items-center gap-1.5">
+                            <Link
+                                href="/categories"
+                                className={
+                                    "flex items-center gap-1.5 font-sans text-[8px] tracking-widest uppercase px-2.5 py-1.5 rounded-sharp border transition-all " +
+                                    (selectedCategories.length > 0
+                                        ? "bg-primary/15 border-primary text-primary"
+                                        : "border-border-subtle text-text-muted hover:border-gold/30")
+                                }
+                            >
+                                <SlidersHorizontal size={10} />
+                                {selectedCategories.length > 0 ? getCategoryLabel(selectedCategories) : "Categories"}
+                            </Link>
+                            <Link
+                                href="/difficulty"
+                                className={
+                                    "font-sans text-[8px] tracking-widest uppercase px-2.5 py-1.5 rounded-sharp border transition-all " +
+                                    (diffIsCustom
+                                        ? "bg-primary/15 border-primary text-primary"
+                                        : "border-border-subtle text-text-muted hover:border-gold/30")
+                                }
+                            >
+                                {diffIsCustom ? diffLabel : "Difficulty"}
+                            </Link>
+                        </div>
                     </div>
                     <div className="flex flex-col gap-2">
                         <Link href="/game/age-guess" className="bg-surface-raised border border-gold/10 rounded-sharp px-5 py-4 flex items-center gap-4 hover:border-gold/30 active:opacity-80 transition-all">
@@ -228,20 +257,33 @@ export default function Home() {
 
                 {/* 4️⃣ Quick Stats */}
                 <section className="border-t border-border-subtle pt-3 flex justify-between items-center text-center">
-                    <div className="space-y-0.5">
-                        <p className="font-sans text-[9px] text-text-muted uppercase tracking-widest">Accuracy</p>
-                        <p className="font-serif text-base text-text-primary">{user.accuracy}%</p>
-                    </div>
-                    <div className="w-[1px] h-6 bg-border-subtle" />
-                    <div className="space-y-0.5">
-                        <p className="font-sans text-[9px] text-text-muted uppercase tracking-widest">Best Score</p>
-                        <p className="font-serif text-base text-text-primary">{user.bestScore}</p>
-                    </div>
-                    <div className="w-[1px] h-6 bg-border-subtle" />
-                    <div className="space-y-0.5">
-                        <p className="font-sans text-[9px] text-text-muted uppercase tracking-widest">Streak</p>
-                        <p className="font-serif text-base text-gold">{user.streak}</p>
-                    </div>
+                    {statsLoading ? (
+                        <>
+                            {[0, 1, 2].map((i) => (
+                                <div key={i} className="flex-1 space-y-1.5">
+                                    <div className="h-2 w-12 mx-auto bg-surface-raised rounded animate-pulse" />
+                                    <div className="h-5 w-8 mx-auto bg-surface-raised rounded animate-pulse" />
+                                </div>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-[9px] text-text-muted uppercase tracking-widest">Accuracy</p>
+                                <p className="font-serif text-base text-text-primary">{user.accuracy}%</p>
+                            </div>
+                            <div className="w-[1px] h-6 bg-border-subtle" />
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-[9px] text-text-muted uppercase tracking-widest">Best Score</p>
+                                <p className="font-serif text-base text-text-primary">{user.bestScore}</p>
+                            </div>
+                            <div className="w-[1px] h-6 bg-border-subtle" />
+                            <div className="space-y-0.5">
+                                <p className="font-sans text-[9px] text-text-muted uppercase tracking-widest">Streak</p>
+                                <p className="font-serif text-base text-gold">{user.streak}</p>
+                            </div>
+                        </>
+                    )}
                 </section>
 
             </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useCategoryStore } from '@/store/useCategoryStore'
+import { useDifficultyStore, getDifficultyParam } from '@/store/useDifficultyStore'
 import { getDbCategories } from '@/lib/categories'
 import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
@@ -37,6 +38,7 @@ export default function ReverseModePage() {
     const router = useRouter()
     const { isAuthenticated, authReady } = useAuthStore()
     const { selected: selectedCategories } = useCategoryStore()
+    const { mode: diffMode, level: diffLevel } = useDifficultyStore()
     const {
         sessionId,
         questions,
@@ -73,7 +75,8 @@ export default function ReverseModePage() {
                 setMode(requestedMode)
 
                 const categories = getDbCategories(selectedCategories)
-                const session = await apiClient.startSession({ mode: requestedMode, categories })
+                const difficulty = getDifficultyParam(diffMode, diffLevel)
+                const session = await apiClient.startSession({ mode: requestedMode, categories, difficulty })
                 if (cancelled) return
                 startGame(session.id, requestedMode, session.questions)
                 setIsLoading(false)

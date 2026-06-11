@@ -7,9 +7,9 @@ import os
 import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing import Optional, List, Any
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import uuid
 
 from slowapi import Limiter
@@ -30,10 +30,26 @@ limiter = Limiter(key_func=get_remote_address)
 
 VALID_DB_CATEGORIES = {"Footballer", "Actor", "Actress", "Musician"}
 
+# Percentile bounds within each category (PERCENT_RANK 0–1)
+# Easy   = top third by popularity (most recognisable)
+# Medium = middle third
+# Hard   = bottom third (most obscure)
+DIFFICULTY_CONFIG = {
+    "easy":   {"pct_min": 0.67, "pct_max": 1.01, "spread": 5},
+    "medium": {"pct_min": 0.34, "pct_max": 0.67, "spread": 3},
+    "hard":   {"pct_min": 0.00, "pct_max": 0.34, "spread": 1},
+}
+ESCALATING_BATCHES = [
+    {"count": 3, "key": "easy"},
+    {"count": 4, "key": "medium"},
+    {"count": 3, "key": "hard"},
+]
+
 class StartSessionRequest(BaseModel):
     mode: str = Field(..., pattern="^(AGE_GUESS|WHO_OLDER|REVERSE_DOB|REVERSE_SIGN|DAILY_CHALLENGE)$")
     pack_date: Optional[str] = None
-    categories: Optional[List[str]] = None  # e.g. ["Footballer", "Actor", "Musician"]
+    categories: Optional[List[str]] = None
+    difficulty: Optional[str] = Field(None, pattern="^(easy|medium|hard|escalating)$")
 
 
 class QuestionResponse(BaseModel):
@@ -127,13 +143,10 @@ async def start_session(
         user_id = user_df.iloc[0]['id']
     session_id = str(uuid.uuid4())
     
-    # Generate questions (simplified for MVP - fetch random active questions)
+    import pandas as pd
     num_questions = 10
 
-    # Build category filter from validated list
-    db_cats = []
-    if body.categories:
-        db_cats = [c for c in body.categories if c in VALID_DB_CATEGORIES]
+    db_cats = [c for c in (body.categories or []) if c in VALID_DB_CATEGORIES]
 
     def _cat_filter(alias: str) -> str:
         if not db_cats:
@@ -141,60 +154,75 @@ async def start_session(
         placeholders = ", ".join(f"'{c}'" for c in db_cats)
         return f"AND {alias}.primary_category IN ({placeholders})"
 
-
-    if body.mode == "WHO_OLDER":
-        questions_df = db.select_df(
+    def _fetch(mode: str, limit: int, pct_min: float, pct_max: float) -> "pd.DataFrame":
+        if mode == "WHO_OLDER":
+            return db.select_df(
+                f"""
+                WITH ranked AS (
+                    SELECT id,
+                           PERCENT_RANK() OVER (
+                               PARTITION BY primary_category ORDER BY popularity_score
+                           ) AS pop_pct
+                    FROM ofta_prod.ofta_person
+                )
+                SELECT qt.id, qt.mode, qt.person_id_a, qt.person_id_b, qt.difficulty,
+                       ca.full_name AS person_name_a, cb.full_name AS person_name_b,
+                       ca.image_url AS person_image_url_a, cb.image_url AS person_image_url_b,
+                       ca.hints_easy AS hints_a, cb.hints_easy AS hints_b
+                FROM ofta_prod.ofta_question_template qt
+                JOIN ofta_prod.ofta_person ca ON qt.person_id_a = ca.id
+                JOIN ofta_prod.ofta_person cb ON qt.person_id_b = cb.id
+                JOIN ranked ra ON ra.id = ca.id
+                JOIN ranked rb ON rb.id = cb.id
+                WHERE qt.mode = 'WHO_OLDER' AND qt.is_active = TRUE
+                  AND ca.image_url IS NOT NULL AND ca.image_url != ''
+                  AND cb.image_url IS NOT NULL AND cb.image_url != ''
+                  AND ra.pop_pct >= :pct_min AND ra.pop_pct < :pct_max
+                  AND rb.pop_pct >= :pct_min AND rb.pop_pct < :pct_max
+                  {_cat_filter('ca')} {_cat_filter('cb')}
+                ORDER BY RANDOM() LIMIT :limit
+                """,
+                params={"limit": limit, "pct_min": pct_min, "pct_max": pct_max},
+            )
+        return db.select_df(
             f"""
-            SELECT
-                qt.id,
-                qt.mode,
-                qt.person_id_a,
-                qt.person_id_b,
-                qt.difficulty,
-                ca.full_name as person_name_a,
-                cb.full_name as person_name_b,
-                ca.image_url as person_image_url_a,
-                cb.image_url as person_image_url_b,
-                ca.hints_easy as hints_a,
-                cb.hints_easy as hints_b
-            FROM ofta_prod.ofta_question_template qt
-            JOIN ofta_prod.ofta_person ca ON qt.person_id_a = ca.id
-            JOIN ofta_prod.ofta_person cb ON qt.person_id_b = cb.id
-            WHERE qt.mode = 'WHO_OLDER' AND qt.is_active = TRUE
-              AND ca.image_url IS NOT NULL AND ca.image_url != ''
-              AND cb.image_url IS NOT NULL AND cb.image_url != ''
-              {_cat_filter('ca')}
-              {_cat_filter('cb')}
-            ORDER BY RANDOM()
-            LIMIT :limit
-            """,
-            params={"limit": num_questions}
-        )
-    else:
-        # AGE_GUESS, REVERSE modes
-        questions_df = db.select_df(
-            f"""
-            SELECT
-                qt.id,
-                qt.mode,
-                qt.person_id,
-                qt.difficulty,
-                c.full_name as person_name,
-                c.image_url as person_image_url,
-                c.hints_easy as hints,
-                c.star_sign,
-                c.date_of_birth,
-                EXTRACT(YEAR FROM c.date_of_birth) as dob_year
+            WITH ranked AS (
+                SELECT id,
+                       PERCENT_RANK() OVER (
+                           PARTITION BY primary_category ORDER BY popularity_score
+                       ) AS pop_pct
+                FROM ofta_prod.ofta_person
+            )
+            SELECT qt.id, qt.mode, qt.person_id, qt.difficulty,
+                   c.full_name AS person_name, c.image_url AS person_image_url,
+                   c.hints_easy AS hints, c.star_sign, c.date_of_birth,
+                   EXTRACT(YEAR FROM c.date_of_birth) AS dob_year
             FROM ofta_prod.ofta_question_template qt
             JOIN ofta_prod.ofta_person c ON qt.person_id = c.id
+            JOIN ranked r ON r.id = c.id
             WHERE qt.mode = :mode AND qt.is_active = TRUE
               AND c.image_url IS NOT NULL AND c.image_url != ''
+              AND r.pop_pct >= :pct_min AND r.pop_pct < :pct_max
               {_cat_filter('c')}
-            ORDER BY RANDOM()
-            LIMIT :limit
+            ORDER BY RANDOM() LIMIT :limit
             """,
-            params={"mode": body.mode, "limit": num_questions}
+            params={"mode": mode, "limit": limit, "pct_min": pct_min, "pct_max": pct_max},
         )
+
+    diff = body.difficulty or "easy"
+
+    if diff == "escalating":
+        batches, spreads = [], []
+        for batch in ESCALATING_BATCHES:
+            cfg = DIFFICULTY_CONFIG[batch["key"]]
+            df = _fetch(body.mode, batch["count"], cfg["pct_min"], cfg["pct_max"])
+            batches.append(df)
+            spreads.extend([cfg["spread"]] * len(df))
+        questions_df = pd.concat(batches, ignore_index=True) if batches else pd.DataFrame()
+    else:
+        cfg = DIFFICULTY_CONFIG[diff]
+        questions_df = _fetch(body.mode, num_questions, cfg["pct_min"], cfg["pct_max"])
+        spreads = [cfg["spread"]] * len(questions_df)
     
     if questions_df.empty:
         raise HTTPException(
@@ -228,7 +256,7 @@ async def start_session(
         "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
     ]
     
-    for _, row in questions_df.iterrows():
+    for i, (_, row) in enumerate(questions_df.iterrows()):
         question = QuestionResponse(
             id=str(row['id']),
             mode=row['mode'],
@@ -283,7 +311,7 @@ async def start_session(
                 today = date.today()
                 correct_age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
-                spread = min(row['difficulty'], 4)
+                spread = spreads[i]
                 pool = [correct_age + d for d in range(-spread, spread + 1)
                         if d != 0 and 16 <= correct_age + d <= 100]
                 distractors = random.sample(pool, min(3, len(pool)))
@@ -605,21 +633,70 @@ async def end_session(
     )
     
     accuracy = (correct_count / questions_count * 100) if questions_count > 0 else 0
-    
-    # Fetch updated stats and rank
-    user_stats_df = db.select_df(
-        """
-        SELECT lifetime_score
-        FROM ofta_prod.ofta_user_stats
-        WHERE user_id = :user_id
-        """,
-        params={"user_id": session_df.iloc[0]['user_id']} # Need user_id from session_df?
+    user_id = session_df.iloc[0]['user_id']
+
+    # Calculate daily streak before upsert
+    existing_df = db.select_df(
+        "SELECT current_streak, updated_at_tms FROM ofta_prod.ofta_user_stats WHERE user_id = :user_id",
+        params={"user_id": user_id}
     )
-    
-    # If user_stats_df is empty (trigger failed or race condition?), default to session score
-    lifetime_score = total_score
-    if not user_stats_df.empty:
-        lifetime_score = int(user_stats_df.iloc[0]['lifetime_score'])
+    today = date.today()
+    if existing_df.empty:
+        new_daily_streak = 1
+    else:
+        ex = existing_df.iloc[0]
+        last_updated = ex['updated_at_tms']
+        prev_streak = int(ex['current_streak'] or 0)
+        if last_updated is None:
+            new_daily_streak = 1
+        else:
+            last_date = last_updated.date() if hasattr(last_updated, 'date') else date.fromisoformat(str(last_updated)[:10])
+            if last_date == today:
+                new_daily_streak = prev_streak
+            elif last_date == today - timedelta(days=1):
+                new_daily_streak = prev_streak + 1
+            else:
+                new_daily_streak = 1
+
+    # Upsert user stats
+    db.execute_query(
+        """
+        INSERT INTO ofta_prod.ofta_user_stats AS s (
+            user_id, lifetime_score, best_streak, current_streak,
+            games_played, total_correct, total_questions, accuracy_pct, updated_at_tms
+        )
+        VALUES (
+            :user_id, :score, :best_streak, :daily_streak,
+            1, :correct, :total, :accuracy, NOW()
+        )
+        ON CONFLICT (user_id) DO UPDATE SET
+            lifetime_score  = s.lifetime_score + :score,
+            best_streak     = GREATEST(s.best_streak, :best_streak),
+            current_streak  = :daily_streak,
+            games_played    = s.games_played + 1,
+            total_correct   = s.total_correct + :correct,
+            total_questions = s.total_questions + :total,
+            accuracy_pct    = (s.total_correct + :correct)::float
+                              / NULLIF(s.total_questions + :total, 0) * 100,
+            updated_at_tms  = NOW()
+        """,
+        params={
+            "user_id":       user_id,
+            "score":         total_score,
+            "best_streak":   best_streak,
+            "daily_streak":  new_daily_streak,
+            "correct":       correct_count,
+            "total":         questions_count,
+            "accuracy":      accuracy,
+        }
+    )
+
+    # Read fresh lifetime score and rank
+    user_stats_df = db.select_df(
+        "SELECT lifetime_score FROM ofta_prod.ofta_user_stats WHERE user_id = :user_id",
+        params={"user_id": user_id}
+    )
+    lifetime_score = int(user_stats_df.iloc[0]['lifetime_score']) if not user_stats_df.empty else total_score
 
     # Calculate rank (simple count > score)
     rank_df = db.select_df(
