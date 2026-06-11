@@ -138,6 +138,12 @@ async def run(category: str, batch_size: int, concurrency: int, dry_run: bool):
 
         print(f"\nScores collected: {len(all_scores)}/{len(rows)}")
 
+        # Reconnect — the async scoring phase leaves the connection idle long enough to drop
+        cur.close()
+        conn.close()
+        conn = psycopg2.connect(**DB)
+        cur = conn.cursor()
+
         updated = 0
         not_found = 0
         for person_id, full_name in rows:

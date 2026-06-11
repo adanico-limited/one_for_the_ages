@@ -187,8 +187,8 @@ export default function WhosOlderPage() {
     const handleEndGame = async () => {
         try {
             setIsLoading(true)
-            await apiClient.endSession(sessionId!)
-            endGame()
+            const result = await apiClient.endSession(sessionId!)
+            endGame(result)
             router.push('/game/results')
         } catch (error) {
             logger.error('Failed to end:', error)

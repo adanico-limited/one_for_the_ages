@@ -46,6 +46,7 @@ export default function AgeGuessPage() {
     const [showHint, setShowHint] = useState(false)
     const [hasUsedHint, setHasUsedHint] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const pendingSubmit = React.useRef<Promise<any> | null>(null)
     const [selectedOption, setSelectedOption] = useState<number | null>(null)
     const [feedback, setFeedback] = useState<{
         type: 'spot-on' | 'close' | 'wrong' | null
@@ -123,8 +124,8 @@ export default function AgeGuessPage() {
         setFeedback({ type, correctAge, scoreAwarded: 0, diff })
         setIsSubmitting(false)
 
-        // Submit to API for authoritative score — single source of truth for correctCount
-        apiClient.submitAnswer(sessionId!, {
+        // Submit to API — track promise so endGame can await it on the last question
+        const submitPromise = apiClient.submitAnswer(sessionId!, {
             question_template_id: currentQuestion.id,
             question_index: currentQuestionIndex,
             user_answer: { age: userGuess },
@@ -136,6 +137,8 @@ export default function AgeGuessPage() {
                 setFeedback(prev => prev.type ? { ...prev, scoreAwarded: result.score_awarded } : prev)
             }
         }).catch((err) => logger.error('Failed to submit answer:', err))
+
+        pendingSubmit.current = submitPromise
     }
 
     const handleNext = () => {
@@ -154,6 +157,7 @@ export default function AgeGuessPage() {
     const handleEndGame = async () => {
         try {
             setIsLoading(true)
+            if (pendingSubmit.current) await pendingSubmit.current
             const result = await apiClient.endSession(sessionId!)
             endGame(result)
             router.push('/game/results')
