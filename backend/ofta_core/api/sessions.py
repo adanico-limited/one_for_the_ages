@@ -158,12 +158,19 @@ async def start_session(
         if mode == "WHO_OLDER":
             return db.select_df(
                 f"""
-                WITH ranked AS (
+                WITH pool AS (
+                    SELECT DISTINCT c.id, c.primary_category, c.popularity_score
+                    FROM ofta_prod.ofta_question_template qt
+                    JOIN ofta_prod.ofta_person c ON qt.person_id_a = c.id OR qt.person_id_b = c.id
+                    WHERE qt.mode = 'WHO_OLDER' AND qt.is_active = TRUE
+                      AND c.image_url IS NOT NULL AND c.image_url != ''
+                ),
+                ranked AS (
                     SELECT id,
                            PERCENT_RANK() OVER (
                                PARTITION BY primary_category ORDER BY popularity_score
                            ) AS pop_pct
-                    FROM ofta_prod.ofta_person
+                    FROM pool
                 )
                 SELECT qt.id, qt.mode, qt.person_id_a, qt.person_id_b, qt.difficulty,
                        ca.full_name AS person_name_a, cb.full_name AS person_name_b,
@@ -186,12 +193,19 @@ async def start_session(
             )
         return db.select_df(
             f"""
-            WITH ranked AS (
+            WITH pool AS (
+                SELECT DISTINCT c.id, c.primary_category, c.popularity_score
+                FROM ofta_prod.ofta_question_template qt
+                JOIN ofta_prod.ofta_person c ON qt.person_id = c.id
+                WHERE qt.mode = :mode AND qt.is_active = TRUE
+                  AND c.image_url IS NOT NULL AND c.image_url != ''
+            ),
+            ranked AS (
                 SELECT id,
                        PERCENT_RANK() OVER (
                            PARTITION BY primary_category ORDER BY popularity_score
                        ) AS pop_pct
-                FROM ofta_prod.ofta_person
+                FROM pool
             )
             SELECT qt.id, qt.mode, qt.person_id, qt.difficulty,
                    c.full_name AS person_name, c.image_url AS person_image_url,
