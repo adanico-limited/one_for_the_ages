@@ -95,6 +95,7 @@ class APIClient {
     async startSession(payload: {
         mode: string
         pack_date?: string
+        categories?: string[]
     }) {
         const { data } = await this.client.post('/v1/sessions/start', payload)
         return data

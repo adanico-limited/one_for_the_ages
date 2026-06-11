@@ -11,6 +11,8 @@ import { FeedbackOverlay } from '@/components/game/FeedbackOverlay'
 import { OptionsGrid } from '@/components/game/OptionsGrid'
 import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useCategoryStore } from '@/store/useCategoryStore'
+import { getDbCategories } from '@/lib/categories'
 import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { sounds } from '@/lib/sounds'
@@ -21,6 +23,7 @@ import Link from 'next/link'
 export default function AgeGuessPage() {
     const router = useRouter()
     const { isAuthenticated, authReady } = useAuthStore()
+    const { selected: selectedCategories } = useCategoryStore()
     const {
         sessionId,
         questions,
@@ -63,7 +66,8 @@ export default function AgeGuessPage() {
 
         const initGame = async () => {
             try {
-                const session = await apiClient.startSession({ mode: 'AGE_GUESS' })
+                const categories = getDbCategories(selectedCategories)
+                const session = await apiClient.startSession({ mode: 'AGE_GUESS', categories })
                 if (cancelled) return
                 startGame(session.id, 'AGE_GUESS', session.questions)
                 setIsLoading(false)

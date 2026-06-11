@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react'
 import { AppShell } from '@/components/ui/Layout'
 import { ArtifactCard } from '@/components/ArtifactCard'
 import { BottomNav } from '@/components/ui/BottomNav'
-import { Hourglass, Scale, Star, ArrowRight } from 'lucide-react'
+import { Hourglass, Scale, Star, ArrowRight, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useCategoryStore } from '@/store/useCategoryStore'
 import { apiClient } from '@/lib/api-client'
 import { calculateLevel } from '@/lib/xp'
 import { logger } from '@/lib/logger'
+import { getCategoryLabel } from '@/lib/categories'
 
 interface UserStats {
     lifetime_score: number
@@ -21,6 +23,7 @@ interface UserStats {
 
 export default function Home() {
     const { user: authUser, oftaUser, isAuthenticated, authReady, setUser, setOftaUser } = useAuthStore()
+    const { selected: selectedCategories } = useCategoryStore()
     const [currentTime, setCurrentTime] = useState(new Date())
     const [timeLeft, setTimeLeft] = useState('')
     const [stats, setStats] = useState<UserStats | null>(null)
@@ -176,9 +179,25 @@ export default function Home() {
 
                 {/* 3️⃣ Game Modes */}
                 <section>
-                    <h2 className="font-sans text-[9px] text-text-muted tracking-[0.3em] uppercase mb-2">
-                        Game Modes
-                    </h2>
+                    <div className="flex items-center justify-between mb-2">
+                        <h2 className="font-sans text-[9px] text-text-muted tracking-[0.3em] uppercase">
+                            Game Modes
+                        </h2>
+                        <Link
+                            href="/categories"
+                            className={
+                                "flex items-center gap-1.5 font-sans text-[8px] tracking-widest uppercase px-2.5 py-1.5 rounded-sharp border transition-all " +
+                                (selectedCategories.length > 0
+                                    ? "bg-primary/15 border-primary text-primary"
+                                    : "border-border-subtle text-text-muted hover:border-gold/30")
+                            }
+                        >
+                            <SlidersHorizontal size={10} />
+                            {selectedCategories.length > 0
+                                ? getCategoryLabel(selectedCategories)
+                                : "Categories"}
+                        </Link>
+                    </div>
                     <div className="flex flex-col gap-2">
                         <Link href="/game/age-guess" className="bg-surface-raised border border-gold/10 rounded-sharp px-5 py-4 flex items-center gap-4 hover:border-gold/30 active:opacity-80 transition-all">
                             <Hourglass size={20} className="text-primary shrink-0" />

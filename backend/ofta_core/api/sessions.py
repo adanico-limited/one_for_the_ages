@@ -28,9 +28,12 @@ limiter = Limiter(key_func=get_remote_address)
 # Request/Response Models
 # ────────────────────────────────────────────────
 
+VALID_DB_CATEGORIES = {"Footballer", "Actor", "Actress", "Musician"}
+
 class StartSessionRequest(BaseModel):
     mode: str = Field(..., pattern="^(AGE_GUESS|WHO_OLDER|REVERSE_DOB|REVERSE_SIGN|DAILY_CHALLENGE)$")
-    pack_date: Optional[str] = None  # For DAILY_CHALLENGE
+    pack_date: Optional[str] = None
+    categories: Optional[List[str]] = None  # e.g. ["Footballer", "Actor", "Musician"]
 
 
 class QuestionResponse(BaseModel):
@@ -126,10 +129,22 @@ async def start_session(
     
     # Generate questions (simplified for MVP - fetch random active questions)
     num_questions = 10
-    
+
+    # Build category filter from validated list
+    db_cats = []
+    if body.categories:
+        db_cats = [c for c in body.categories if c in VALID_DB_CATEGORIES]
+
+    def _cat_filter(alias: str) -> str:
+        if not db_cats:
+            return ""
+        placeholders = ", ".join(f"'{c}'" for c in db_cats)
+        return f"AND {alias}.primary_category IN ({placeholders})"
+
+
     if body.mode == "WHO_OLDER":
         questions_df = db.select_df(
-            """
+            f"""
             SELECT
                 qt.id,
                 qt.mode,
@@ -148,6 +163,8 @@ async def start_session(
             WHERE qt.mode = 'WHO_OLDER' AND qt.is_active = TRUE
               AND ca.image_url IS NOT NULL AND ca.image_url != ''
               AND cb.image_url IS NOT NULL AND cb.image_url != ''
+              {_cat_filter('ca')}
+              {_cat_filter('cb')}
             ORDER BY RANDOM()
             LIMIT :limit
             """,
@@ -156,7 +173,7 @@ async def start_session(
     else:
         # AGE_GUESS, REVERSE modes
         questions_df = db.select_df(
-            """
+            f"""
             SELECT
                 qt.id,
                 qt.mode,
@@ -172,6 +189,7 @@ async def start_session(
             JOIN ofta_prod.ofta_person c ON qt.person_id = c.id
             WHERE qt.mode = :mode AND qt.is_active = TRUE
               AND c.image_url IS NOT NULL AND c.image_url != ''
+              {_cat_filter('c')}
             ORDER BY RANDOM()
             LIMIT :limit
             """,

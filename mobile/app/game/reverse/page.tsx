@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/store/useGameStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useCategoryStore } from '@/store/useCategoryStore'
+import { getDbCategories } from '@/lib/categories'
 import { apiClient } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { sounds } from '@/lib/sounds'
@@ -34,6 +36,7 @@ const ZODIAC_SIGNS = [
 export default function ReverseModePage() {
     const router = useRouter()
     const { isAuthenticated, authReady } = useAuthStore()
+    const { selected: selectedCategories } = useCategoryStore()
     const {
         sessionId,
         questions,
@@ -69,7 +72,8 @@ export default function ReverseModePage() {
                 const requestedMode = (searchParams.get('type') === 'year' ? 'REVERSE_DOB' : 'REVERSE_SIGN') as 'REVERSE_SIGN' | 'REVERSE_DOB'
                 setMode(requestedMode)
 
-                const session = await apiClient.startSession({ mode: requestedMode })
+                const categories = getDbCategories(selectedCategories)
+                const session = await apiClient.startSession({ mode: requestedMode, categories })
                 if (cancelled) return
                 startGame(session.id, requestedMode, session.questions)
                 setIsLoading(false)
