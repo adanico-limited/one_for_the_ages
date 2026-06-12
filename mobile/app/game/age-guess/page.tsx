@@ -112,7 +112,7 @@ export default function AgeGuessPage() {
             type = 'spot-on'
             sounds.play('correct')
             haptics.impact(ImpactStyle.Heavy)
-        } else if (diff <= 2) {
+        } else if (diff === 1) {
             type = 'close'
             sounds.play('correct')
             haptics.impact(ImpactStyle.Medium)
