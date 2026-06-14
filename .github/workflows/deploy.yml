@@ -3,148 +3,128 @@ name: Deploy to Cloud Run
 on:
   push:
     tags:
-      - '*.*.*-dev'       # dev
-      - '*.*.*-sandbox'   # sandbox
-      - '*.*.*'           # prod (default)
+      - '*.*.*-dev'
+      - '*.*.*'        # prod (bare semver)
 
 jobs:
   # ────────────────────────────────────────────────
-  # 1. API Service (Python)
+  # 1. Backend API (Python / FastAPI)
   # ────────────────────────────────────────────────
   deploy-api:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+    outputs:
+      api_url: ${{ steps.get_url.outputs.api_url }}
+      environment: ${{ steps.vars.outputs.environment }}
 
-      - name: Set Env Vars
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version & environment
+        id: vars
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          if [[ "$VERSION" == *"-dev" ]]; then echo "ENVIRONMENT=dev" >> "$GITHUB_ENV";
-          elif [[ "$VERSION" == *"-sandbox" ]]; then echo "ENVIRONMENT=sandbox" >> "$GITHUB_ENV";
-          else echo "ENVIRONMENT=prod" >> "$GITHUB_ENV"; fi
+          if [[ "$VERSION" == *"-dev" ]]; then ENVIRONMENT=dev; else ENVIRONMENT=prod; fi
+          echo "version=$VERSION"           >> "$GITHUB_OUTPUT"
+          echo "environment=$ENVIRONMENT"   >> "$GITHUB_OUTPUT"
 
       - name: Authenticate with GCP
         run: |
-          echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > gcp-key.json
+          echo "${{ secrets.ADANICO_GCP_SA_KEY }}" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project "${{ secrets.GCP_PROJECT }}"
+          gcloud config set project adanico-labs
 
-      - name: Build & Push API Image
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build & push API image
         run: |
+          IMAGE="us-central1-docker.pkg.dev/adanico-labs/adanico-repo/ofta-api:${{ steps.vars.outputs.version }}"
           cd backend
-          IMAGE_URI="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/ofta-repo/ofta-api:${{ env.VERSION }}"
-          gcloud builds submit --tag "$IMAGE_URI"
+          gcloud builds submit --tag "$IMAGE"
 
-      - name: Deploy API
+      - name: Deploy API to Cloud Run
         run: |
-          SERVICE="ofta-api-${{ env.ENVIRONMENT }}"
-          IMAGE_URI="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/ofta-repo/ofta-api:${{ env.VERSION }}"
+          SERVICE="ofta-api-${{ steps.vars.outputs.environment }}"
+          IMAGE="us-central1-docker.pkg.dev/adanico-labs/adanico-repo/ofta-api:${{ steps.vars.outputs.version }}"
           gcloud run deploy "$SERVICE" \
-            --image="$IMAGE_URI" \
+            --image="$IMAGE" \
             --region=us-central1 \
             --platform=managed \
             --allow-unauthenticated \
-            --set-env-vars "\
-              OFTA_DB_HOST=${{ secrets.OFTA_DB_HOST }},\
-              OFTA_DB_PORT=${{ secrets.OFTA_DB_PORT }},\
-              OFTA_DB_NAME=${{ secrets.OFTA_DB_NAME }},\
-              OFTA_DB_USERNAME=${{ secrets.OFTA_DB_USERNAME }},\
-              OFTA_DB_PASSWORD=${{ secrets.OFTA_DB_PASSWORD }},\
-              SECRET_KEY=${{ secrets.SECRET_KEY }},\
-              JWT_SECRET=${{ secrets.JWT_SECRET }},\
+            --memory=512Mi \
+            --cpu=1 \
+            --timeout=60 \
+            --set-env-vars="\
+              ENVIRONMENT=${{ steps.vars.outputs.environment }},\
+              TASC_DB_HOST=${{ secrets.TASC_DB_HOST }},\
+              TASC_DB_PORT=${{ secrets.TASC_DB_PORT }},\
+              TASC_DB_NAME=${{ secrets.TASC_DB_NAME }},\
+              TASC_DB_USERNAME=${{ secrets.TASC_DB_USERNAME }},\
+              TASC_DB_PASSWORD=${{ secrets.TASC_DB_PASSWORD }},\
               FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},\
-              GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT }},\
-              OFTA_STORAGE_BUCKET=${{ secrets.OFTA_STORAGE_BUCKET }},\
-              TMDB_API_KEY=${{ secrets.TMDB_API_KEY }},\
-              ENVIRONMENT=${{ env.ENVIRONMENT }}"
+              ALLOWED_ORIGINS=capacitor://localhost,https://localhost"
+
+      - name: Get API URL
+        id: get_url
+        run: |
+          URL=$(gcloud run services describe "ofta-api-${{ steps.vars.outputs.environment }}" \
+            --region=us-central1 --format="value(status.url)")
+          echo "api_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Remove GCP key file
+        if: always()
+        run: rm -f gcp-key.json
 
   # ────────────────────────────────────────────────
-  # 2. Admin Panel (Static/Nginx)
+  # 2. Web app (Next.js static → Cloud Run)
   # ────────────────────────────────────────────────
-  deploy-admin:
-    needs: deploy-api # Wait so we can inject the API URL if needed
+  deploy-web:
+    needs: deploy-api
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
 
-      - name: Set Env Vars
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version & environment
+        id: vars
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          if [[ "$VERSION" == *"-dev" ]]; then echo "ENVIRONMENT=dev" >> "$GITHUB_ENV";
-          elif [[ "$VERSION" == *"-sandbox" ]]; then echo "ENVIRONMENT=sandbox" >> "$GITHUB_ENV";
-          else echo "ENVIRONMENT=prod" >> "$GITHUB_ENV"; fi
+          if [[ "$VERSION" == *"-dev" ]]; then ENVIRONMENT=dev; else ENVIRONMENT=prod; fi
+          echo "version=$VERSION"           >> "$GITHUB_OUTPUT"
+          echo "environment=$ENVIRONMENT"   >> "$GITHUB_OUTPUT"
 
       - name: Authenticate with GCP
         run: |
-          echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > gcp-key.json
+          echo "${{ secrets.ADANICO_GCP_SA_KEY }}" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project "${{ secrets.GCP_PROJECT }}"
+          gcloud config set project adanico-labs
 
-      - name: Build & Push Admin Image
+      - name: Build & push web image
         run: |
-          cd admin
-          IMAGE_URI="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/ofta-repo/ofta-admin:${{ env.VERSION }}"
-          gcloud builds submit --tag "$IMAGE_URI"
-
-      - name: Deploy Admin
-        run: |
-          SERVICE="ofta-admin-${{ env.ENVIRONMENT }}"
-          IMAGE_URI="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/ofta-repo/ofta-admin:${{ env.VERSION }}"
-          # Determine API URL based on environment (you can hardcode or use output from previous step)
-          # For now assuming standard pattern:
-          API_URL="https://ofta-api-${{ env.ENVIRONMENT }}-xyz-uc.a.run.app"
-          
-          gcloud run deploy "$SERVICE" \
-            --image="$IMAGE_URI" \
-            --region=us-central1 \
-            --platform=managed \
-            --allow-unauthenticated \
-            --set-env-vars "API_BASE_URL=$API_URL"
-
-  # ────────────────────────────────────────────────
-  # 3. Mobile App (Web Version)
-  # ────────────────────────────────────────────────
-  deploy-web-app:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Set Env Vars
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          if [[ "$VERSION" == *"-dev" ]]; then echo "ENVIRONMENT=dev" >> "$GITHUB_ENV";
-          elif [[ "$VERSION" == *"-sandbox" ]]; then echo "ENVIRONMENT=sandbox" >> "$GITHUB_ENV";
-          else echo "ENVIRONMENT=prod" >> "$GITHUB_ENV"; fi
-
-      - name: Authenticate with GCP
-        run: |
-          echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > gcp-key.json
-          gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project "${{ secrets.GCP_PROJECT }}"
-
-      - name: Build & Push Web App Image
-        run: |
+          IMAGE="us-central1-docker.pkg.dev/adanico-labs/adanico-repo/ofta-web:${{ steps.vars.outputs.version }}"
           cd mobile
-          IMAGE_URI="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/ofta-repo/ofta-app:${{ env.VERSION }}"
-          # Use explicit cloudbuild config to handle build args
-          gcloud builds submit --config=cloudbuild.yaml --substitutions=_IMAGE_URI="$IMAGE_URI"
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions="_IMAGE_URI=$IMAGE,\
+              _API_URL=${{ needs.deploy-api.outputs.api_url }},\
+              _FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }},\
+              _FIREBASE_AUTH_DOMAIN=${{ secrets.FIREBASE_AUTH_DOMAIN }},\
+              _FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }},\
+              _FIREBASE_MESSAGING_SENDER_ID=${{ secrets.FIREBASE_MESSAGING_SENDER_ID }},\
+              _FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"
 
-      - name: Deploy Web App
+      - name: Deploy web to Cloud Run
         run: |
-          SERVICE="ofta-app-${{ env.ENVIRONMENT }}"
-          IMAGE_URI="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/ofta-repo/ofta-app:${{ env.VERSION }}"
-          API_URL="https://ofta-api-${{ env.ENVIRONMENT }}-xyz-uc.a.run.app"
-
+          SERVICE="ofta-web-${{ steps.vars.outputs.environment }}"
+          IMAGE="us-central1-docker.pkg.dev/adanico-labs/adanico-repo/ofta-web:${{ steps.vars.outputs.version }}"
           gcloud run deploy "$SERVICE" \
-            --image="$IMAGE_URI" \
+            --image="$IMAGE" \
             --region=us-central1 \
             --platform=managed \
             --allow-unauthenticated \
-            --port=3100 \
-            --set-env-vars "NEXT_PUBLIC_API_BASE_URL=$API_URL"
+            --memory=512Mi \
+            --port=3100
+
+      - name: Remove GCP key file
+        if: always()
+        run: rm -f gcp-key.json

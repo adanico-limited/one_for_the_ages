@@ -21,11 +21,11 @@ import time
 load_dotenv()
 
 # Database credentials
-ofta_db_username = os.getenv('OFTA_DB_USERNAME')
-ofta_db_password = os.getenv('OFTA_DB_PASSWORD')
-ofta_db_host = os.getenv('OFTA_DB_HOST')
-ofta_db_port = os.getenv('OFTA_DB_PORT')
-ofta_db_name = os.getenv('OFTA_DB_NAME')
+ofta_db_username = os.getenv('TASC_DB_USERNAME') or os.getenv('OFTA_DB_USERNAME')
+ofta_db_password = os.getenv('TASC_DB_PASSWORD') or os.getenv('OFTA_DB_PASSWORD')
+ofta_db_host = os.getenv('TASC_DB_HOST') or os.getenv('OFTA_DB_HOST')
+ofta_db_port = os.getenv('TASC_DB_PORT') or os.getenv('OFTA_DB_PORT')
+ofta_db_name = os.getenv('TASC_DB_NAME') or os.getenv('OFTA_DB_NAME')
 
 logger = logging.getLogger(__name__)
 
